@@ -19,14 +19,22 @@
   </section>
   <section id="app" class="hidden">
     <div class="welcome"><div><p class="eyebrow">YOUR FAMILY SPACE</p><h1>寵物餵食管理</h1><p id="family-name" class="muted"></p></div><button id="signout" class="secondary">登出</button></div>
-    <div id="family-setup" class="panel hidden"><h2>建立家庭</h2><form id="create-family"><input id="new-family-name" placeholder="家庭名稱，例如：我們家" required><button>建立家庭</button></form><p class="muted">建立後可邀請家人加入，共同查看餵食紀錄。</p></div>
+    <div id="family-setup" class="panel hidden"><h2>建立家庭</h2><form id="create-family"><input id="new-family-name" placeholder="家庭名稱，例如：我們家" required><button>建立家庭</button></form><p class="muted">建立後可邀請家人加入，共同查看餵食紀錄。</p>
+<hr>
+<h3>加入現有家庭</h3>
+<p class="muted">如果家人已經建立家庭，請輸入對方分享的邀請碼。</p>
+<form id="join-family">
+  <input id="join-code" placeholder="輸入家人的邀請碼" required>
+  <button class="secondary">加入家庭</button>
+</form>
+</div>
     <div id="dashboard" class="hidden">
       <div class="toolbar"><h2>我的寵物</h2><button id="add-pet">＋ 新增寵物</button></div>
       <div id="pets" class="pet-grid"></div>
       <section class="panel">
         <div class="toolbar"><div><h2>家庭設定</h2><p class="muted">家庭成員、邀請碼與 LINE 群組</p></div></div>
         <div class="settings-grid">
-          <div><h3>成員顯示名稱</h3><form id="profile-form"><input id="display-name" maxlength="40" placeholder="例如：媽媽、爸爸、Rosie" required><button class="secondary">儲存名稱</button></form><p class="muted">餵食紀錄會顯示這個名稱。</p></div><div><h3>邀請家人</h3><p>邀請碼：<strong id="invite-code">—</strong></p><button id="copy-invite" class="secondary">複製邀請碼</button><form id="join-family"><input id="join-code" placeholder="輸入家人的邀請碼"><button class="secondary">加入家庭</button></form></div>
+          <div><h3>成員顯示名稱</h3><form id="profile-form"><input id="display-name" maxlength="40" placeholder="例如：媽媽、爸爸、Rosie" required><button class="secondary">儲存名稱</button></form><p class="muted">餵食紀錄會顯示這個名稱。</p></div><div><h3>邀請家人</h3><p>邀請碼：<strong id="invite-code">—</strong></p><button id="copy-invite" class="secondary">複製邀請碼</button></div>
           <div><h3>LINE 群組綁定</h3><p id="line-status" class="muted">尚未綁定</p><button id="make-pairing" class="secondary">產生 LINE 配對碼</button><p id="pairing-code" class="pairing"></p><small>將 PetFeeder 官方 LINE Bot 邀請進家庭群組，在群組中輸入：<code>綁定 配對碼</code>。配對碼限時 10 分鐘且只能使用一次。</small></div>
         </div>
       </section>
