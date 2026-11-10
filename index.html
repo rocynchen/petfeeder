@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#f6f4ef"><meta name="description" content="PetFeeder 寵物餵食紀錄">
+  <title>PetFeeder｜寵物餵食紀錄</title><link rel="stylesheet" href="./styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<header><div class="brand">🐾 <span>PetFeeder</span></div><div id="user-area"></div></header>
+<main>
+  <section id="setup" class="panel hidden">
+    <h1>設定 PetFeeder</h1><p>請先在 <code>config.js</code> 填入 Supabase URL 與 anon key，再重新整理頁面。</p>
+  </section>
+  <section id="auth" class="panel hidden">
+    <h1>歡迎使用 PetFeeder</h1><p>輸入電子郵件，我們會寄送安全登入連結。</p>
+    <form id="login-form"><input id="email" type="email" placeholder="電子郵件" required><button>寄送登入連結</button></form>
+    <p id="auth-message" class="muted"></p>
+  </section>
+  <section id="app" class="hidden">
+    <div class="welcome"><div><p class="eyebrow">YOUR FAMILY SPACE</p><h1>寵物餵食管理</h1><p id="family-name" class="muted"></p></div><button id="signout" class="secondary">登出</button></div>
+    <div id="family-setup" class="panel hidden"><h2>建立家庭</h2><form id="create-family"><input id="new-family-name" placeholder="家庭名稱，例如：我們家" required><button>建立家庭</button></form><p class="muted">建立後可邀請家人加入，共同查看餵食紀錄。</p></div>
+    <div id="dashboard" class="hidden">
+      <div class="toolbar"><h2>我的寵物</h2><button id="add-pet">＋ 新增寵物</button></div>
+      <div id="pets" class="pet-grid"></div>
+      <section class="panel">
+        <div class="toolbar"><div><h2>家庭設定</h2><p class="muted">家庭成員、邀請碼與 LINE 群組</p></div></div>
+        <div class="settings-grid">
+          <div><h3>成員顯示名稱</h3><form id="profile-form"><input id="display-name" maxlength="40" placeholder="例如：媽媽、爸爸、Rosie" required><button class="secondary">儲存名稱</button></form><p class="muted">餵食紀錄會顯示這個名稱。</p></div><div><h3>邀請家人</h3><p>邀請碼：<strong id="invite-code">—</strong></p><button id="copy-invite" class="secondary">複製邀請碼</button><form id="join-family"><input id="join-code" placeholder="輸入家人的邀請碼"><button class="secondary">加入家庭</button></form></div>
+          <div><h3>LINE 群組綁定</h3><p id="line-status" class="muted">尚未綁定</p><button id="make-pairing" class="secondary">產生 LINE 配對碼</button><p id="pairing-code" class="pairing"></p><small>將 PetFeeder 官方 LINE Bot 邀請進家庭群組，在群組中輸入：<code>綁定 配對碼</code>。配對碼限時 10 分鐘且只能使用一次。</small></div>
+        </div>
+      </section>
+      <section class="panel"><h2>近期餵食紀錄</h2><p class="muted">顯示最近 30 天的餵食者與實際紀錄時間。</p><div id="feeding-history"></div></section>
+    </div>
+  </section>
+</main>
+<dialog id="pet-dialog">
+<form method="dialog" id="pet-form">
+  <div class="toolbar"><h2 id="pet-dialog-title">新增寵物</h2><button class="icon-btn" value="cancel" aria-label="關閉">✕</button></div>
+  <input type="hidden" id="pet-id"><label>寵物名稱<input id="pet-name" required maxlength="50" placeholder="例如：丁寶"></label>
+  <label>種類（選填）<input id="pet-kind" maxlength="40" placeholder="狗狗、貓咪…"></label>
+  <h3>餐次設定</h3><p class="muted">餐數不限，可自行新增、命名與設定時間。</p>
+  <div id="meal-editor"></div><button type="button" id="add-meal" class="secondary">＋ 新增餐次</button>
+  <div class="dialog-actions"><button type="button" id="save-pet">儲存寵物設定</button></div>
+</form>
+</dialog>
+<dialog id="feed-dialog">
+<form method="dialog" id="feed-form">
+  <div class="toolbar"><h2 id="feed-title">餵食確認</h2><button class="icon-btn" value="cancel">✕</button></div>
+  <input type="hidden" id="feed-pet-id"><label>選擇餐次<select id="feed-meal"></select></label>
+  <p class="muted">確認後會記錄餵食者與實際時間，並同步給家庭成員。</p>
+  <div class="dialog-actions"><button type="button" id="confirm-feed">是，我餵好了</button></div>
+</form>
+</dialog>
+<template id="meal-row-template"><div class="meal-row"><input class="meal-name" placeholder="餐名，例如：早餐" required maxlength="40"><input class="meal-time" type="time" required><button type="button" class="remove-meal secondary">移除</button></div></template>
+<script src="./config.js"></script><script src="./app.js"></script>
+</body></html>
