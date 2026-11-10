@@ -39,10 +39,16 @@
     const [p,m,f,profile]=await Promise.all([
       sb.from("pets").select("*").eq("household_id",household.id).eq("active",true).order("created_at"),
       sb.from("meal_types").select("*").eq("household_id",household.id).eq("active",true).order("sort_order"),
-      sb.from("feedings").select("*,pets(name),meal_types(name),profiles(display_name)").eq("household_id",household.id).gte("fed_at",new Date(Date.now()-3*86400000).toISOString()).order("fed_at",{ascending:false})
+      sb.from("feedings").select("*,pets(name),meal_types(name),profiles(display_name)").eq("household_id",household.id).gte("fed_at",new Date(Date.now()-30*86400000).toISOString()).order("fed_at",{ascending:false}),
+      sb.from("profiles").select("display_name").eq("id",user.id).maybeSingle()
     ]);
     if(p.error||m.error||f.error){console.error(p.error,m.error,f.error);return;}
-    pets=p.data||[]; meals=m.data||[]; feedings=f.data||[]; renderPets();
+    pets=p.data||[]; meals=m.data||[]; feedings=f.data||[];
+    if(!profile.error && profile.data){
+      $("display-name").value=profile.data.display_name||"";
+    }
+    renderPets();
+    renderHistory();
   }
 
   $("profile-form").addEventListener("submit",async e=>{
@@ -122,6 +128,22 @@
     $("pairing-code").textContent=data;
   };
   $("copy-invite").onclick=()=>navigator.clipboard.writeText($("invite-code").textContent).then(()=>msg("已複製邀請碼"));
+
+  // Main navigation: home, feeding history, family settings
+  document.querySelectorAll(".nav-item").forEach(button=>{
+    button.addEventListener("click",()=>{
+      const target=button.dataset.page;
+      document.querySelectorAll(".app-page").forEach(page=>{
+        page.classList.toggle("hidden",page.id!==target);
+      });
+      document.querySelectorAll(".nav-item").forEach(item=>{
+        item.classList.toggle("active",item===button);
+      });
+      $("page-title").textContent=button.dataset.title;
+      window.scrollTo({top:0,behavior:"smooth"});
+    });
+  });
+
   const params=new URLSearchParams(location.search);
   sb.auth.onAuthStateChange((_event,session)=>{user=session?.user||null;init();});
   init().then(async()=>{if(user&&params.get("pet")){await refreshData();const p=pets.find(x=>x.public_token===params.get("pet"));if(p){const m=meals.find(x=>x.pet_id===p.id);if(m)openFeed(p.id,m.id);}}});

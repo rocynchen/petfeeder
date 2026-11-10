@@ -1,1 +1,164 @@
 *{box-sizing:border-box}body{margin:0;background:#f6f4ef;color:#292b28;font:16px/1.55 -apple-system,BlinkMacSystemFont,"Noto Sans TC",sans-serif}header{height:66px;padding:0 max(22px,calc((100% - 1050px)/2));display:flex;align-items:center;justify-content:space-between;background:#fff;border-bottom:1px solid #e9e6df}.brand{font-size:21px;font-weight:800;color:#344b3d}main{max-width:1050px;margin:36px auto;padding:0 20px}.panel{background:#fff;border:1px solid #e8e5de;border-radius:18px;padding:24px;margin:20px 0;box-shadow:0 5px 20px #292b2808}h1{font-size:30px;margin:4px 0 8px}h2{font-size:21px;margin:0}h3{font-size:16px;margin:10px 0}.muted{color:#777e76;font-size:14px}.eyebrow{letter-spacing:2px;font-size:11px;color:#7c907e;font-weight:700}.hidden{display:none!important}button{background:#496b55;color:#fff;border:0;border-radius:10px;padding:11px 16px;font:inherit;font-weight:650;cursor:pointer}button:hover{filter:brightness(.96)}button:disabled{opacity:.55;cursor:wait}.secondary{background:#edf1ec;color:#385440}input,select{width:100%;border:1px solid #dcded8;border-radius:9px;padding:11px;margin:6px 0 13px;font:inherit;background:#fff}form label{display:block;font-weight:600;font-size:14px}.welcome,.toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px}.welcome{margin-bottom:25px}.pet-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}.pet-card{background:#fff;border:1px solid #e8e5de;border-radius:16px;padding:18px}.pet-card h3{font-size:20px;margin:0}.pet-top{display:flex;justify-content:space-between;align-items:flex-start}.meal-list{margin:15px 0}.meal-item{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:9px 0;border-bottom:1px solid #f0eee9;font-size:14px}.meal-item:last-child{border:0}.meal-item button{padding:7px 10px;font-size:13px}.fed{color:#3b8052;font-weight:700}.meal-editor{margin:8px 0}.meal-row{display:grid;grid-template-columns:1fr 115px auto;gap:8px;align-items:center}.meal-row input{margin:5px 0}.remove-meal{padding:8px}.settings-grid{display:grid;grid-template-columns:1fr 1fr;gap:25px}.pairing{font-size:25px;font-weight:800;letter-spacing:4px;color:#496b55}.dialog-actions{display:flex;justify-content:flex-end;margin-top:18px}.icon-btn{background:transparent;color:#555;padding:4px 8px}dialog{border:0;border-radius:18px;width:min(560px,calc(100% - 28px));padding:24px;box-shadow:0 20px 80px #0003}dialog::backdrop{background:#1e2824a8}code{background:#f0f2ed;padding:2px 5px;border-radius:5px;font-size:13px}#join-family{display:flex;gap:8px;margin-top:10px}#join-family input{margin:0;min-width:0}#join-family button{white-space:nowrap}@media(max-width:650px){main{margin:20px auto}.settings-grid{grid-template-columns:1fr}.meal-row{grid-template-columns:1fr 100px auto}.panel{padding:18px}.welcome{align-items:flex-start}}
+/* ===== PetFeeder App Navigation ===== */
+.app-page {
+  animation: page-in .18s ease-out;
+}
+
+@keyframes page-in {
+  from { opacity: .65; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.page-heading {
+  margin: 8px 0 18px;
+}
+
+.page-heading h2 {
+  font-size: 23px;
+}
+
+.app-nav {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin: 28px 0 8px;
+  padding: 8px;
+  background: #fff;
+  border: 1px solid #e8e5de;
+  border-radius: 16px;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 130px;
+  padding: 10px 18px;
+  color: #68736a;
+  background: transparent;
+  border-radius: 11px;
+  font-size: 14px;
+}
+
+.nav-item.active {
+  color: #385440;
+  background: #edf1ec;
+}
+
+.nav-icon {
+  font-size: 19px;
+  line-height: 1;
+}
+
+#dashboard {
+  padding-bottom: 20px;
+}
+
+#dashboard .welcome {
+  margin-bottom: 28px;
+}
+
+#dashboard .panel {
+  margin-top: 16px;
+}
+
+#dashboard input {
+  max-width: 100%;
+}
+
+@media (max-width: 650px) {
+  body {
+    padding-bottom: calc(78px + env(safe-area-inset-bottom));
+  }
+
+  main {
+    margin: 12px auto 20px;
+    padding: 0 14px;
+  }
+
+  header {
+    height: 58px;
+    padding: 0 16px;
+  }
+
+  .brand {
+    font-size: 19px;
+  }
+
+  #dashboard .welcome {
+    align-items: center;
+    margin: 12px 0 24px;
+  }
+
+  #dashboard .welcome h1 {
+    font-size: 25px;
+  }
+
+  .toolbar {
+    align-items: center;
+  }
+
+  .toolbar button {
+    padding: 10px 12px;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+
+  .pet-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .pet-card {
+    padding: 16px;
+  }
+
+  .app-nav {
+    position: fixed;
+    z-index: 50;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    margin: 0;
+    padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
+    border: 0;
+    border-top: 1px solid #e8e5de;
+    border-radius: 16px 16px 0 0;
+    background: #fff;
+    box-shadow: 0 -5px 20px #292b280d;
+    gap: 4px;
+  }
+
+  .nav-item {
+    flex: 1;
+    min-width: 0;
+    flex-direction: column;
+    gap: 3px;
+    padding: 7px 3px;
+    font-size: 11px;
+  }
+
+  .nav-icon {
+    font-size: 21px;
+  }
+
+  .settings-grid {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+
+  .panel {
+    padding: 17px;
+    border-radius: 15px;
+  }
+
+  .meal-row {
+    grid-template-columns: minmax(0, 1fr) 90px auto;
+    gap: 5px;
+  }
+
+  #join-family {
+    flex-wrap: wrap;
+  }
+}
