@@ -5,7 +5,7 @@
   const msg = (s) => alert(s);
   if (!cfg.SUPABASE_URL || !cfg.SUPABASE_ANON_KEY || cfg.SUPABASE_URL.includes("YOUR_")) { show("setup"); return; }
   const sb = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
-  let user=null, household=null, pets=[], meals=[], feedings=[], activePet=null;
+  let user=null, household=null, pets=[], meals=[], feedings=[], historyFeedings=[], activePet=null, members=[], historyMonth=new Date(), selectedHistoryDate="", selectedFeeder="all", selectedPet="all";
   const esc = s => String(s ?? "").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const dateKey = () => new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Taipei"}).format(new Date());
   const timeText = v => new Date(v).toLocaleString("zh-TW",{timeZone:"Asia/Taipei",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hour12:false});
@@ -36,17 +36,58 @@
   }
   async function refreshData(){
     if(!household)return;
-    const [p,m,f,profile]=await Promise.all([
+
+    const year=historyMonth.getFullYear();
+    const month=historyMonth.getMonth();
+    const monthStart=new Date(year,month,1).toLocaleDateString("en-CA");
+    const nextMonthStart=new Date(year,month+1,1).toLocaleDateString("en-CA");
+
+    const [p,m,f,h,profile]=await Promise.all([
       sb.from("pets").select("*").eq("household_id",household.id).eq("active",true).order("created_at"),
       sb.from("meal_types").select("*").eq("household_id",household.id).eq("active",true).order("sort_order"),
       sb.from("feedings").select("*,pets(name),meal_types(name),profiles(display_name)").eq("household_id",household.id).gte("fed_at",new Date(Date.now()-30*86400000).toISOString()).order("fed_at",{ascending:false}),
+      sb.from("feedings").select("*,pets(name),meal_types(name),profiles(display_name)").eq("household_id",household.id).gte("feeding_date",monthStart).lt("feeding_date",nextMonthStart).order("fed_at",{ascending:false}),
       sb.from("profiles").select("display_name").eq("id",user.id).maybeSingle()
     ]);
-    if(p.error||m.error||f.error){console.error(p.error,m.error,f.error);return;}
-    pets=p.data||[]; meals=m.data||[]; feedings=f.data||[];
+
+    if(p.error||m.error||f.error||h.error){
+      console.error(p.error,m.error,f.error,h.error);
+      msg("載入資料失敗，請稍後再試。");
+      return;
+    }
+
+    pets=p.data||[];
+    meals=m.data||[];
+    feedings=f.data||[];
+    historyFeedings=h.data||[];
+
+    const {data:memberRows,error:memberError}=await sb.from("household_members").select("user_id").eq("household_id",household.id);
+
+    if(memberError){
+      console.error(memberError);
+      msg("載入家庭成員失敗："+memberError.message);
+      return;
+    }
+
+    const memberIds=(memberRows||[]).map(x=>x.user_id);
+    if(memberIds.length){
+      const {data:profilesData,error:profilesError}=await sb.from("profiles").select("id,display_name").in("id",memberIds);
+      if(profilesError){
+        console.error(profilesError);
+        msg("載入成員名稱失敗："+profilesError.message);
+        return;
+      }
+      members=profilesData||[];
+    }else{
+      members=[];
+    }
+
+    if(!selectedHistoryDate)selectedHistoryDate=dateKey();
+
     if(!profile.error && profile.data){
       $("display-name").value=profile.data.display_name||"";
     }
+
     renderPets();
     renderHistory();
   }
@@ -58,8 +99,86 @@
     if(error)msg(error.message);else {msg("顯示名稱已更新。");await refreshData();}
   });
   function renderHistory(){
-    $("feeding-history").innerHTML=feedings.length?feedings.map(f=>`<div class="meal-item"><div><strong>${esc(f.pets?.name||"寵物")} · ${esc(f.meal_types?.name||"餐次")}</strong><br><span class="muted">餵食者：${esc(f.profiles?.display_name||"家庭成員")}　｜　${esc(timeText(f.fed_at))}</span></div></div>`).join(""):`<p class="muted">最近 30 天尚無餵食紀錄。</p>`;
+    const year=historyMonth.getFullYear();
+    const month=historyMonth.getMonth();
+    const monthLabel=`${year} 年 ${String(month+1).padStart(2,"0")} 月`;
+    const firstDay=new Date(year,month,1).getDay();
+    const daysInMonth=new Date(year,month+1,0).getDate();
+
+    const calendarCells=Array(firstDay).fill('<span class="calendar-empty"></span>');
+    for(let day=1;day<=daysInMonth;day++){
+      const date=`${year}-${String(month+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+      const hasRecords=historyFeedings.some(f=>f.feeding_date===date);
+      calendarCells.push(`<button type="button" class="calendar-day ${selectedHistoryDate===date?"selected":""} ${hasRecords?"has-records":""}" data-date="${date}">${day}${hasRecords?'<span class="calendar-dot"></span>':""}</button>`);
+    }
+
+    const petOptions=pets.map(p=>`<option value="${esc(p.id)}" ${selectedPet===p.id?"selected":""}>${esc(p.name)}</option>`).join("");
+    const feederOptions=members.map(m=>`<option value="${esc(m.id)}" ${selectedFeeder===m.id?"selected":""}>${esc(m.display_name||"家庭成員")}</option>`).join("");
+
+    const filtered=historyFeedings.filter(f=>
+      f.feeding_date===selectedHistoryDate &&
+      (selectedPet==="all"||f.pet_id===selectedPet) &&
+      (selectedFeeder==="all"||f.fed_by===selectedFeeder)
+    );
+
+    $("feeding-history").innerHTML=`
+      <div class="history-calendar">
+        <div class="calendar-toolbar">
+          <button type="button" class="secondary" id="history-prev">‹</button>
+          <strong>${monthLabel}</strong>
+          <button type="button" class="secondary" id="history-next">›</button>
+        </div>
+        <div class="calendar-weekdays">
+          ${["日","一","二","三","四","五","六"].map(d=>`<span>${d}</span>`).join("")}
+        </div>
+        <div class="calendar-grid">${calendarCells.join("")}</div>
+        <p class="muted calendar-hint">有圓點表示當天有餵食紀錄，點選日期查看。</p>
+      </div>
+      <div class="history-filters">
+        <label>寵物
+          <select id="history-pet-filter">
+            <option value="all">全部寵物</option>${petOptions}
+          </select>
+        </label>
+        <label>餵食者
+          <select id="history-feeder-filter">
+            <option value="all">所有家庭成員</option>${feederOptions}
+          </select>
+        </label>
+      </div>
+      <h3 class="history-date-title">${selectedHistoryDate==="all"?"全部日期":selectedHistoryDate}</h3>
+      <div class="history-record-list">
+        ${filtered.length?filtered.map(f=>`<div class="meal-item"><div><strong>${esc(f.pets?.name||"寵物")} · ${esc(f.meal_types?.name||"餐次")}</strong><br><span class="muted">餵食者：${esc(f.profiles?.display_name||"家庭成員")}　｜　${esc(timeText(f.fed_at))}</span></div></div>`).join(""):'<p class="muted">這一天沒有符合篩選條件的餵食紀錄。</p>'}
+      </div>`;
+
+    $("history-prev").onclick=async()=>{
+      historyMonth=new Date(year,month-1,1);
+      const day=Math.min(Number(selectedHistoryDate.slice(-2))||1,new Date(historyMonth.getFullYear(),historyMonth.getMonth()+1,0).getDate());
+      selectedHistoryDate=`${historyMonth.getFullYear()}-${String(historyMonth.getMonth()+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+      await refreshData();
+    };
+    $("history-next").onclick=async()=>{
+      historyMonth=new Date(year,month+1,1);
+      const day=Math.min(Number(selectedHistoryDate.slice(-2))||1,new Date(historyMonth.getFullYear(),historyMonth.getMonth()+1,0).getDate());
+      selectedHistoryDate=`${historyMonth.getFullYear()}-${String(historyMonth.getMonth()+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+      await refreshData();
+    };
+    $("feeding-history").querySelectorAll(".calendar-day").forEach(button=>{
+      button.onclick=()=>{
+        selectedHistoryDate=button.dataset.date;
+        renderHistory();
+      };
+    });
+    $("history-pet-filter").onchange=e=>{
+      selectedPet=e.target.value;
+      renderHistory();
+    };
+    $("history-feeder-filter").onchange=e=>{
+      selectedFeeder=e.target.value;
+      renderHistory();
+    };
   }
+
 
   $("create-family").addEventListener("submit",async e=>{
     e.preventDefault();const {error}=await sb.rpc("create_household",{p_name:$("new-family-name").value.trim()});
