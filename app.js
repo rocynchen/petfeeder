@@ -8,7 +8,7 @@
   let user=null, household=null, pets=[], meals=[], feedings=[], activePet=null;
   const esc = s => String(s ?? "").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const dateKey = () => new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Taipei"}).format(new Date());
-  const timeText = v => new Date(v).toLocaleString("zh-TW",{timeZone:"Asia/Taipei",hour12:false});
+  const timeText = v => new Date(v).toLocaleString("zh-TW",{timeZone:"Asia/Taipei",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hour12:false});
   async function init() {
     const {data:{session}} = await sb.auth.getSession();
     user=session?.user || null;
