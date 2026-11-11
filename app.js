@@ -97,25 +97,113 @@
     renderHouseholdMembers();
   }
 
-  function renderHouseholdMembers(){
-    const container=$("household-members-list");
-    if(!container)return;
 
-    container.innerHTML=members.length?members.map(member=>{
-      const isCurrentUser=member.id===user.id;
-      const roleLabel=member.role==="owner"?"家庭管理者":"家庭成員";
-      return `<div class="member-row">
-        <div class="member-avatar">👤</div>
-        <div class="member-info">
-          <strong>${esc(member.display_name||"家庭成員")}</strong>
-          <span class="muted">${isCurrentUser?"目前登入帳號":""}</span>
-        </div>
-        <span class="member-role">${roleLabel}</span>
-      </div>`;
-    }).join(""):'<p class="muted">目前沒有家庭成員資料。</p>';
-  }
+function renderHouseholdMembers(){
+  const container=$("household-members-list");
+  if(!container)return;
 
-  $("profile-form").addEventListener("submit",async e=>{
+  const myRole=members.find(member=>member.id===user.id)?.role;
+
+  container.innerHTML=members.length?members.map(member=>{
+    const isCurrentUser=member.id===user.id;
+
+    const roleLabel=member.role==="founder"
+      ?"家庭建立者"
+      :member.role==="owner"
+        ?"共同管理者"
+        :"家庭成員";
+
+    let actions="";
+
+    const actionButton=(action,label,extraClass="")=>
+      `<button type="button" class="member-action ${extraClass}"
+        data-member-action="${action}"
+        data-user-id="${esc(member.id)}"
+        data-member-name="${esc(member.display_name||"家庭成員")}">${label}</button>`;
+
+    if(!isCurrentUser && myRole==="founder"){
+      if(member.role==="member"){
+        actions+=actionButton("promote","升級管理者");
+      }
+      if(member.role==="owner"){
+        actions+=actionButton("demote","降為一般成員");
+      }
+      actions+=actionButton("remove","移除成員","danger");
+      actions+=actionButton("transfer","轉移建立者");
+    }else if(!isCurrentUser && myRole==="owner" && member.role==="member"){
+      actions+=actionButton("promote","升級管理者");
+      actions+=actionButton("remove","移除成員","danger");
+    }
+
+    return `<div class="member-row">
+      <div class="member-avatar">👤</div>
+      <div class="member-info">
+        <strong>${esc(member.display_name||"家庭成員")}</strong>
+        <span class="muted">${isCurrentUser?"目前登入帳號":""}</span>
+      </div>
+      <span class="member-role">${roleLabel}</span>
+      ${actions?`<div class="member-actions">${actions}</div>`:""}
+    </div>`;
+  }).join(""):'<p class="muted">目前沒有家庭成員資料。</p>';
+}
+
+
+
+const memberActionsContainer=$("household-members-list");
+
+if(memberActionsContainer){
+  memberActionsContainer.addEventListener("click",async e=>{
+    const button=e.target.closest("[data-member-action]");
+    if(!button)return;
+
+    const action=button.dataset.memberAction;
+    const memberId=button.dataset.userId;
+    const memberName=button.dataset.memberName;
+
+    const actionNames={
+      promote:"升級為共同管理者",
+      demote:"降為一般成員",
+      remove:"移除家庭成員",
+      transfer:"轉移家庭建立者身分"
+    };
+
+    if(!actionNames[action])return;
+
+    const confirmMessages={
+      promote:`確定要將 ${memberName} 升級為共同管理者嗎？`,
+      demote:`確定要將 ${memberName} 降為一般成員嗎？`,
+      remove:`確定要將 ${memberName} 移出家庭嗎？`,
+      transfer:`確定將家庭建立者身分轉移給 ${memberName} 嗎？你將變成共同管理者。`
+    };
+
+    if(!window.confirm(confirmMessages[action]))return;
+
+    const rpcNames={
+      promote:"promote_household_member",
+      demote:"demote_household_member",
+      remove:"remove_household_member",
+      transfer:"transfer_household_founder"
+    };
+
+    button.disabled=true;
+
+    try{
+      const {error}=await sb.rpc(rpcNames[action],{
+        p_household_id:household.id,
+        p_user_id:memberId
+      });
+
+      if(error)throw error;
+
+      msg(`${memberName}：${actionNames[action]}成功。`);
+      await refreshData();
+    }catch(error){
+      msg(error.message||"操作失敗，請稍後再試。");
+      button.disabled=false;
+    }
+  });
+}
+$("profile-form").addEventListener("submit",async e=>{
     e.preventDefault();
     const display_name=$("display-name").value.trim();
     const {error}=await sb.from("profiles").update({display_name}).eq("id",user.id);

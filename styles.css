@@ -404,3 +404,44 @@
     flex-direction: column;
   }
 }
+
+/* Phase 4 - Household member management */
+.member-row {
+  flex-wrap: wrap;
+}
+
+.member-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
+  padding: 4px 0 8px 52px;
+}
+
+.member-action {
+  border: 1px solid #ded5ef;
+  border-radius: 9px;
+  background: #f7f3ff;
+  color: #7052a5;
+  padding: 8px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  opacity: 1;
+}
+
+.member-action.danger {
+  border-color: #f0d2d2;
+  background: #fff5f5;
+  color: #b94b4b;
+}
+
+
+@media (max-width: 480px) {
+  .member-actions {
+    padding-left: 0;
+  }
+
+  .member-action {
+    flex: 1 1 auto;
+  }
+}
