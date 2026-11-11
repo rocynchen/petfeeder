@@ -60,34 +60,69 @@
       <section id="settings-page" class="app-page hidden">
         <div class="page-heading">
           <h2>家庭設定</h2>
-          <p class="muted">管理家庭成員、邀請與通知</p>
+          <p class="muted">管理個人資料、家庭成員與通知</p>
         </div>
-        <section class="panel">
-          <div class="settings-grid">
+
+        <section class="settings-card">
+          <div class="settings-card-heading">
+            <span class="settings-icon">👤</span>
             <div>
-              <h3>個人顯示名稱</h3>
-              <form id="profile-form">
-                <input id="display-name" maxlength="40" placeholder="例如：媽媽、爸爸、Rosie" required>
-                <button class="secondary">儲存名稱</button>
-              </form>
-              <p class="muted">設定一次即可，日後可以隨時修改。</p>
-            </div>
-            <div>
-              <h3>家庭邀請</h3>
-              <p>邀請碼：<strong id="invite-code">—</strong></p>
-              <button id="copy-invite" class="secondary">複製邀請碼</button>
-            </div>
-            <div>
-              <h3>LINE 群組綁定</h3>
-              <p id="line-status" class="muted">尚未綁定</p>
-              <button id="make-pairing" class="secondary">產生 LINE 配對碼</button>
-              <p id="pairing-code" class="pairing"></p>
-              <small>將 PetFeeder 官方 LINE Bot 邀請進家庭群組，在群組中輸入：<code>綁定 配對碼</code>。配對碼限時 10 分鐘且只能使用一次。</small>
+              <h3>個人資料</h3>
+              <p class="muted">設定家庭成員看到的名稱</p>
             </div>
           </div>
+          <form id="profile-form">
+            <label for="display-name">顯示名稱</label>
+            <input id="display-name" maxlength="40" placeholder="例如：媽媽、爸爸、Rosie" required>
+            <button class="secondary">儲存名稱</button>
+          </form>
+        </section>
+
+        <section class="settings-card">
+          <div class="settings-card-heading">
+            <span class="settings-icon">🏠</span>
+            <div>
+              <h3>家庭資訊</h3>
+              <p class="muted">管理家庭邀請</p>
+            </div>
+          </div>
+          <p>家庭名稱：<strong id="settings-family-name">—</strong></p>
+          <p>邀請碼：<strong id="invite-code">—</strong></p>
+          <button type="button" id="copy-invite" class="secondary">複製邀請碼</button>
+        </section>
+
+        <section class="settings-card">
+          <div class="settings-card-heading">
+            <span class="settings-icon">💬</span>
+            <div>
+              <h3>LINE 通知</h3>
+              <p class="muted">讓家庭成員即時收到餵食通知</p>
+            </div>
+          </div>
+          <p id="line-status" class="muted">尚未綁定</p>
+          <button type="button" id="make-pairing" class="secondary">產生 LINE 配對碼</button>
+          <div id="pairing-panel" class="pairing-panel hidden">
+            <p class="muted">請在 LINE 家庭群組輸入以下配對碼：</p>
+            <div class="pairing-code-display">
+              <strong id="pairing-code"></strong>
+              <button type="button" id="copy-pairing" class="secondary">複製配對碼</button>
+            </div>
+            <small>配對碼限時 10 分鐘，且只能使用一次。</small>
+          </div>
+          <small>將 PetFeeder 官方 LINE Bot 邀請進家庭群組，在群組中輸入：<code>綁定 配對碼</code>。配對碼限時 10 分鐘且只能使用一次。</small>
+        </section>
+
+        <section class="settings-card">
+          <div class="settings-card-heading">
+            <span class="settings-icon">👥</span>
+            <div>
+              <h3>家庭成員</h3>
+              <p class="muted">目前家庭中的所有成員</p>
+            </div>
+          </div>
+          <div id="household-members-list"></div>
         </section>
       </section>
-
       <nav id="bottom-nav" class="app-nav" aria-label="主要導覽">
         <button type="button" class="nav-item active" data-page="home-page" data-title="今日餵食">
           <span class="nav-icon">⌂</span><span>首頁</span>

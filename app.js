@@ -27,6 +27,7 @@
     if(!m){show("family-setup");show("dashboard",false);return;}
     household=m.households; show("family-setup",false);show("dashboard");
     $("family-name").textContent=household.name;
+    $("settings-family-name").textContent=household.name;
     $("invite-code").textContent=household.invite_code;
     $("line-status").textContent=household.line_group_id?"已綁定 LINE 群組 ✓":"尚未綁定 LINE 群組";
     await refreshData();
@@ -61,7 +62,7 @@
     feedings=f.data||[];
     historyFeedings=h.data||[];
 
-    const {data:memberRows,error:memberError}=await sb.from("household_members").select("user_id").eq("household_id",household.id);
+    const {data:memberRows,error:memberError}=await sb.from("household_members").select("user_id,role").eq("household_id",household.id);
 
     if(memberError){
       console.error(memberError);
@@ -77,7 +78,10 @@
         msg("載入成員名稱失敗："+profilesError.message);
         return;
       }
-      members=profilesData||[];
+      members=(profilesData||[]).map(profile=>({
+        ...profile,
+        role:(memberRows||[]).find(row=>row.user_id===profile.id)?.role||"member"
+      }));
     }else{
       members=[];
     }
@@ -90,6 +94,25 @@
 
     renderPets();
     renderHistory();
+    renderHouseholdMembers();
+  }
+
+  function renderHouseholdMembers(){
+    const container=$("household-members-list");
+    if(!container)return;
+
+    container.innerHTML=members.length?members.map(member=>{
+      const isCurrentUser=member.id===user.id;
+      const roleLabel=member.role==="owner"?"家庭管理者":"家庭成員";
+      return `<div class="member-row">
+        <div class="member-avatar">👤</div>
+        <div class="member-info">
+          <strong>${esc(member.display_name||"家庭成員")}</strong>
+          <span class="muted">${isCurrentUser?"目前登入帳號":""}</span>
+        </div>
+        <span class="member-role">${roleLabel}</span>
+      </div>`;
+    }).join(""):'<p class="muted">目前沒有家庭成員資料。</p>';
   }
 
   $("profile-form").addEventListener("submit",async e=>{
@@ -245,6 +268,13 @@
     const {data,error}=await sb.rpc("create_line_pairing");
     if(error){msg(error.message);return;}
     $("pairing-code").textContent=data;
+    show("pairing-panel");
+  };
+
+  $("copy-pairing").onclick=()=>{
+    const code=$("pairing-code").textContent;
+    if(!code)return;
+    navigator.clipboard.writeText(code).then(()=>msg("已複製 LINE 配對碼"));
   };
   $("copy-invite").onclick=()=>navigator.clipboard.writeText($("invite-code").textContent).then(()=>msg("已複製邀請碼"));
 

@@ -279,3 +279,128 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Phase 3 - Family settings cards */
+.settings-card {
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #ece8f4);
+  border-radius: 18px;
+  padding: 20px;
+  margin-bottom: 16px;
+  box-shadow: 0 3px 14px rgba(50, 35, 80, 0.04);
+}
+
+.settings-card h3 {
+  margin: 0 0 5px;
+}
+
+.settings-card-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.settings-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  border-radius: 13px;
+  background: #f0ebff;
+  font-size: 21px;
+}
+
+.settings-card .muted {
+  margin: 4px 0 0;
+}
+
+.settings-card form {
+  display: grid;
+  gap: 10px;
+}
+
+.settings-card form button {
+  justify-self: start;
+}
+
+.settings-card > button {
+  margin-top: 8px;
+}
+
+.member-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 0;
+  border-bottom: 1px solid var(--border, #eee);
+}
+
+.member-row:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.member-avatar {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #f0ebff;
+  font-size: 19px;
+}
+
+.member-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+}
+
+.member-role {
+  padding: 5px 10px;
+  border-radius: 20px;
+  background: #f0ebff;
+  color: #7052a5;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.pairing-panel {
+  margin-top: 14px;
+  padding: 16px;
+  border-radius: 14px;
+  background: #f7f3ff;
+}
+
+.pairing-code-display {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 12px 0;
+}
+
+.pairing-code-display strong {
+  font-size: 25px;
+  letter-spacing: 5px;
+  color: #7052a5;
+}
+
+@media (max-width: 480px) {
+  .settings-card {
+    padding: 16px;
+    border-radius: 16px;
+  }
+
+  .pairing-code-display {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
