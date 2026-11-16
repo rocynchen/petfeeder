@@ -14,7 +14,15 @@ Deno.serve(async req=>{
  if(!h?.line_group_id)return Response.json({sent:false,reason:"LINE group not connected"});
  const token=Deno.env.get("LINE_CHANNEL_ACCESS_TOKEN"); if(!token)return new Response("LINE token not configured",{status:500});
  const pet=(f.pets as any)?.name||"寵物", meal=(f.meal_types as any)?.name||"餐次", who=(f.profiles as any)?.display_name||"家庭成員";
- const when=new Date(f.fed_at).toLocaleString("zh-TW",{timeZone:"Asia/Taipei",hour12:false});
+ const when=new Date(f.fed_at).toLocaleString("zh-TW",{
+  timeZone:"Asia/Taipei",
+  year:"numeric",
+  month:"2-digit",
+  day:"2-digit",
+  hour:"2-digit",
+  minute:"2-digit",
+  hour12:false
+});
  const res=await fetch("https://api.line.me/v2/bot/message/push",{method:"POST",headers:{"content-type":"application/json","authorization":`Bearer ${token}`},body:JSON.stringify({to:h.line_group_id,messages:[{type:"text",text:`🐾 PetFeeder 餵食紀錄\\n寵物：${pet}\\n餐次：${meal}\\n餵食者：${who}\\n時間：${when}`} ]})});
  if(!res.ok)return new Response(await res.text(),{status:502});
  return Response.json({sent:true});

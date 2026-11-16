@@ -148,12 +148,21 @@
 </form>
 </dialog>
 <dialog id="feed-dialog">
-<form method="dialog" id="feed-form">
-  <div class="toolbar"><h2 id="feed-title">餵食確認</h2><button class="icon-btn" value="cancel">✕</button></div>
-  <input type="hidden" id="feed-pet-id"><label>選擇餐次<select id="feed-meal"></select></label>
-  <p class="muted">確認後會記錄餵食者與實際時間，並同步給家庭成員。</p>
-  <div class="dialog-actions"><button type="button" id="confirm-feed">是，我餵好了</button></div>
-</form>
+  <form method="dialog" id="feed-form">
+    <div class="toolbar">
+      <h2 id="feed-title">餵食確認</h2>
+      <button class="icon-btn" value="cancel">✕</button>
+    </div>
+    <input type="hidden" id="feed-pet-id">
+    <label>選擇餐次
+      <select id="feed-meal"></select>
+    </label>
+    <p class="muted">確認後會記錄餵食者與實際時間，並同步給家庭成員。</p>
+    <div class="dialog-actions">
+      <button type="button" id="cancel-feed">還沒餵食</button>
+      <button type="button" id="confirm-feed">已餵食</button>
+    </div>
+  </form>
 </dialog>
 <template id="meal-row-template"><div class="meal-row"><input class="meal-name" placeholder="餐名，例如：早餐" required maxlength="40"><input class="meal-time" type="time" required><button type="button" class="remove-meal secondary">移除</button></div></template>
 <script src="./config.js"></script><script src="./app.js"></script>

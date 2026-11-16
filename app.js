@@ -331,7 +331,7 @@ $("profile-form").addEventListener("submit",async e=>{
   function renderPets(){
     $("pets").innerHTML=pets.length?pets.map(p=>{
       const pm=meals.filter(m=>m.pet_id===p.id), today=feedings.filter(f=>f.pet_id===p.id&&f.feeding_date===dateKey());
-      return `<article class="pet-card"><div class="pet-top"><div><h3>🐾 ${esc(p.name)}</h3><span class="muted">${esc(p.kind||"")}</span></div><button class="secondary edit-pet" data-id="${p.id}">編輯</button></div><div class="meal-list">${pm.map(m=>{const f=today.find(x=>x.meal_id===m.id);return `<div class="meal-item"><div><strong>${esc(m.name)}</strong> <span class="muted">${esc(m.scheduled_time)}</span><br><span class="${f?"fed":"muted"}">${f?`✓ ${esc(f.profiles?.display_name||"家庭成員")} · ${esc(timeText(f.fed_at))}`:"尚未餵食"}</span></div><button data-pet="${p.id}" data-meal="${m.id}" class="feed-one" ${f?"disabled":""}>${f?"已完成":"記錄餵食"}</button></div>`}).join("")}</div><button class="secondary show-nfc" data-id="${p.id}">查看 NFC 連結</button></article>`;
+      return `<article class="pet-card"><div class="pet-top"><div><h3>🐾 ${esc(p.name)}</h3><span class="muted">${esc(p.kind||"")}</span></div><button class="secondary edit-pet" data-id="${p.id}">編輯</button></div><div class="meal-list">${pm.map(m=>{const f=today.find(x=>x.meal_id===m.id);return `<div class="meal-item"><div><strong>${esc(m.name)}</strong> <br><span class="${f?"fed":"muted"}">${f?`✓ ${esc(f.profiles?.display_name||"家庭成員")} · ${esc(timeText(f.fed_at))}`:"尚未餵食"}</span></div><button data-pet="${p.id}" data-meal="${m.id}" class="feed-one" ${f?"disabled":""}>${f?"已完成":"記錄餵食"}</button></div>`}).join("")}</div><button class="secondary show-nfc" data-id="${p.id}">查看 NFC 連結</button></article>`;
     }).join(""):`<div class="panel"><p>尚未新增寵物，按「新增寵物」開始設定。</p></div>`;
     document.querySelectorAll(".edit-pet").forEach(b=>b.onclick=()=>openPet(pets.find(p=>p.id===b.dataset.id)));
     document.querySelectorAll(".feed-one").forEach(b=>b.onclick=()=>openFeed(b.dataset.pet,b.dataset.meal));
@@ -340,9 +340,12 @@ $("profile-form").addEventListener("submit",async e=>{
   function openFeed(petId,mealId){
     const p=pets.find(x=>x.id===petId), pm=meals.filter(x=>x.pet_id===petId);
     $("feed-pet-id").value=petId;$("feed-title").textContent=`你餵了 ${p.name} 嗎？`;
-    $("feed-meal").innerHTML=pm.map(m=>`<option value="${m.id}" ${m.id===mealId?"selected":""}>${esc(m.name)}（${esc(m.scheduled_time)}）</option>`).join("");
+    $("feed-meal").innerHTML=pm.map(m=>`<option value="${m.id}" ${m.id===mealId?"selected":""}>${esc(m.name)}</option>`).join("");
     $("feed-dialog").showModal();
   }
+$("cancel-feed").onclick=()=>{
+  $("feed-dialog").close();
+};
   $("confirm-feed").onclick=async()=>{
     const petId=$("feed-pet-id").value, mealId=$("feed-meal").value;
     const meal=meals.find(m=>m.id===mealId);
