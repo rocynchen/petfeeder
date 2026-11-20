@@ -5,7 +5,7 @@
   const msg = (s) => alert(s);
   if (!cfg.SUPABASE_URL || !cfg.SUPABASE_ANON_KEY || cfg.SUPABASE_URL.includes("YOUR_")) { show("setup"); return; }
   const sb = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
-  let user=null, household=null, pets=[], meals=[], feedings=[], historyFeedings=[], activePet=null, members=[], historyMonth=new Date(), selectedHistoryDate="", selectedFeeder="all", selectedPet="all";
+  let user=null, household=null, pets=[], meals=[], feedings=[], historyFeedings=[], stoolRecords=[], activePet=null, members=[], historyMonth=new Date(), selectedHistoryDate="", selectedFeeder="all", selectedPet="all";
   const esc = s => String(s ?? "").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const dateKey = () => new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Taipei"}).format(new Date());
   const timeText = v => new Date(v).toLocaleString("zh-TW",{timeZone:"Asia/Taipei",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hour12:false});
@@ -43,16 +43,19 @@
     const monthStart=new Date(year,month,1).toLocaleDateString("en-CA");
     const nextMonthStart=new Date(year,month+1,1).toLocaleDateString("en-CA");
 
-    const [p,m,f,h,profile]=await Promise.all([
-      sb.from("pets").select("*").eq("household_id",household.id).eq("active",true).order("created_at"),
-      sb.from("meal_types").select("*").eq("household_id",household.id).eq("active",true).order("sort_order"),
-      sb.from("feedings").select("*,pets(name),meal_types(name),profiles(display_name)").eq("household_id",household.id).gte("fed_at",new Date(Date.now()-30*86400000).toISOString()).order("fed_at",{ascending:false}),
-      sb.from("feedings").select("*,pets(name),meal_types(name),profiles(display_name)").eq("household_id",household.id).gte("feeding_date",monthStart).lt("feeding_date",nextMonthStart).order("fed_at",{ascending:false}),
-      sb.from("profiles").select("display_name").eq("id",user.id).maybeSingle()
-    ]);
 
-    if(p.error||m.error||f.error||h.error){
-      console.error(p.error,m.error,f.error,h.error);
+const [p,m,f,h,profile,s]=await Promise.all([
+  sb.from("pets").select("*").eq("household_id",household.id).eq("active",true).order("created_at"),
+  sb.from("meal_types").select("*").eq("household_id",household.id).eq("active",true).order("sort_order"),
+  sb.from("feedings").select("*,pets(name),meal_types(name),profiles(display_name)").eq("household_id",household.id).gte("fed_at",new Date(Date.now()-30*86400000).toISOString()).order("fed_at",{ascending:false}),
+  sb.from("feedings").select("*,pets(name),meal_types(name),profiles(display_name)").eq("household_id",household.id).gte("feeding_date",monthStart).lt("feeding_date",nextMonthStart).order("fed_at",{ascending:false}),
+  sb.from("profiles").select("display_name").eq("id",user.id).maybeSingle(),
+  sb.from("stool_records").select("*").eq("household_id",household.id).order("recorded_at",{ascending:false})
+]);
+
+
+    if(p.error||m.error||f.error||h.error||s.error){
+      console.error(p.error,m.error,f.error,h.error,s.error);
       msg("載入資料失敗，請稍後再試。");
       return;
     }
@@ -61,6 +64,7 @@
     meals=m.data||[];
     feedings=f.data||[];
     historyFeedings=h.data||[];
+    stoolRecords=s.data||[];
 
     const {data:memberRows,error:memberError}=await sb.from("household_members").select("user_id,role").eq("household_id",household.id);
 
@@ -95,8 +99,116 @@
     renderPets();
     renderHistory();
     renderHouseholdMembers();
+    renderStoolRecords();
   }
 
+
+function openStoolDialog(){
+  if(!pets.length){
+    msg("請先新增寵物，再建立異常便便紀錄。");
+    return;
+  }
+
+  $("stool-form").reset();
+
+  $("stool-pet").innerHTML=pets.map(p=>
+    `<option value="${p.id}">${esc(p.name)}</option>`
+  ).join("");
+
+  $("stool-recorded-at").value=
+    new Date(Date.now()-new Date().getTimezoneOffset()*60000)
+      .toISOString().slice(0,16);
+
+  $("stool-dialog").showModal();
+}
+
+$("add-stool-record").onclick=openStoolDialog;
+
+$("close-stool-dialog").onclick=()=>{
+  $("stool-dialog").close();
+};
+
+$("cancel-stool").onclick=()=>{
+  $("stool-dialog").close();
+};
+
+
+$("stool-form").addEventListener("submit",async e=>{
+  e.preventDefault();
+
+  const petId=$("stool-pet").value;
+  const stoolType=$("stool-type").value;
+  const recordedValue=$("stool-recorded-at").value;
+if(!recordedValue){
+  msg("請選擇紀錄時間。");
+  return;
+}
+const recordedAt=new Date(recordedValue).toISOString();
+  const symptoms=[...document.querySelectorAll('input[name="stool-symptom"]:checked')]
+    .map(input=>input.value);
+  const note=$("stool-note").value.trim();
+
+  const saveButton=$("save-stool");
+  saveButton.disabled=true;
+
+  try{
+    const {error}=await sb.from("stool_records").insert({
+      household_id:household.id,
+      pet_id:petId,
+      recorded_by:user.id,
+      stool_type:stoolType,
+      recorded_at:recordedAt,
+      symptoms,
+      note:note||null
+    });
+
+    if(error)throw error;
+
+    $("stool-dialog").close();
+    msg("異常便便紀錄已儲存！");
+    await refreshData();
+
+  }catch(error){
+    msg("儲存失敗："+error.message);
+  }finally{
+    saveButton.disabled=false;
+  }
+});
+
+function renderStoolRecords(){
+  const container=$("stool-record-list");
+  if(!container)return;
+
+  const typeLabels={
+    soft:"軟便",
+    diarrhea:"腹瀉（水狀）",
+    other:"其他異常"
+  };
+
+  container.innerHTML=stoolRecords.length
+    ?stoolRecords.map(record=>{
+      const pet=pets.find(p=>p.id===record.pet_id);
+      const member=members.find(m=>m.id===record.recorded_by);
+
+      return `<div class="meal-item">
+        <div>
+          <strong>🐾 ${esc(pet?.name||"寵物")} · ${typeLabels[record.stool_type]||"異常便便"}</strong>
+          <br>
+          <span class="muted">
+            ${esc(timeText(record.recorded_at))}
+            ｜紀錄者：${esc(member?.display_name||"家庭成員")}
+          </span>
+          ${record.symptoms?.length
+            ?`<p class="muted">症狀：${record.symptoms.map(esc).join("、")}</p>`
+            :""}
+          ${record.note
+            ?`<p>${esc(record.note)}</p>`
+            :""}
+        </div>
+      </div>`;
+    }).join("")
+    :'<p class="muted">目前尚無異常便便紀錄。</p>';
+}
 
 function renderHouseholdMembers(){
   const container=$("household-members-list");

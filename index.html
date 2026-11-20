@@ -47,6 +47,26 @@
         <div id="pets" class="pet-grid"></div>
       </section>
 
+<section id="care-page" class="app-page hidden">
+  <div class="page-heading">
+    <h2>每日照護</h2>
+    <p class="muted">記錄寵物的日常健康狀況</p>
+  </div>
+
+  <section class="panel">
+    <h3>💩 異常便便紀錄</h3>
+    <p class="muted">只需記錄異常情況，正常便便不用特別登記。</p>
+    <button type="button" id="add-stool-record">＋ 新增異常紀錄</button>
+  </section>
+
+  <section class="panel">
+    <h3>📋 歷史紀錄</h3>
+    <div id="stool-record-list">
+      <p class="muted">目前尚無異常便便紀錄。</p>
+    </div>
+  </section>
+</section> 
+ 
       <section id="history-page" class="app-page hidden">
         <div class="page-heading">
           <h2>餵食紀錄</h2>
@@ -123,17 +143,23 @@
           <div id="household-members-list"></div>
         </section>
       </section>
-      <nav id="bottom-nav" class="app-nav" aria-label="主要導覽">
-        <button type="button" class="nav-item active" data-page="home-page" data-title="今日餵食">
-          <span class="nav-icon">⌂</span><span>首頁</span>
-        </button>
-        <button type="button" class="nav-item" data-page="history-page" data-title="餵食紀錄">
-          <span class="nav-icon">▦</span><span>餵食紀錄</span>
-        </button>
-        <button type="button" class="nav-item" data-page="settings-page" data-title="家庭設定">
-          <span class="nav-icon">⚙</span><span>家庭設定</span>
-        </button>
-      </nav>
+
+<nav id="bottom-nav" class="app-nav" aria-label="主要導覽">
+  <button type="button" class="nav-item active" data-page="home-page" data-title="今日餵食">
+    <span class="nav-icon">⌂</span><span>首頁</span>
+  </button>
+  <button type="button" class="nav-item" data-page="history-page" data-title="餵食紀錄">
+    <span class="nav-icon">▦</span><span>餵食紀錄</span>
+  </button>
+  <button type="button" class="nav-item" data-page="care-page" data-title="每日照護">
+    <span class="nav-icon">🐾</span><span>每日照護</span>
+  </button>
+  <button type="button" class="nav-item" data-page="settings-page" data-title="家庭設定">
+    <span class="nav-icon">⚙</span><span>家庭設定</span>
+  </button>
+</nav>
+
+
     </div>
   </section>
 </main>
@@ -166,4 +192,46 @@
 </dialog>
 <template id="meal-row-template"><div class="meal-row"><input class="meal-name" placeholder="餐名，例如：早餐" required maxlength="40"><input class="meal-time" type="time" required><button type="button" class="remove-meal secondary">移除</button></div></template>
 <script src="./config.js"></script><script src="./app.js"></script>
+
+<dialog id="stool-dialog">
+  <form method="dialog" id="stool-form">
+    <div class="dialog-heading">
+      <h2>新增異常便便紀錄</h2>
+      <button type="button" class="icon-btn" id="close-stool-dialog">×</button>
+    </div>
+
+    <label>寵物
+      <select id="stool-pet" required></select>
+    </label>
+
+    <label>異常類型
+      <select id="stool-type" required>
+        <option value="soft">軟便</option>
+        <option value="diarrhea">腹瀉（水狀）</option>
+        <option value="other">其他異常（血便、黏液、顏色異常）</option>
+      </select>
+    </label>
+
+    <label>發生時間
+      <input type="datetime-local" id="stool-recorded-at" required>
+    </label>
+
+    <fieldset>
+      <legend>其他症狀（可複選）</legend>
+      <label><input type="checkbox" name="stool-symptom" value="嘔吐"> 嘔吐</label>
+      <label><input type="checkbox" name="stool-symptom" value="食慾不振"> 食慾不振</label>
+      <label><input type="checkbox" name="stool-symptom" value="精神不佳"> 精神不佳</label>
+      <label><input type="checkbox" name="stool-symptom" value="其他"> 其他</label>
+    </fieldset>
+
+    <label>備註
+      <textarea id="stool-note" rows="3" placeholder="例如：顏色、次數、其他觀察"></textarea>
+    </label>
+
+    <div class="dialog-actions">
+      <button type="button" class="secondary" id="cancel-stool">取消</button>
+      <button type="submit" id="save-stool">儲存紀錄</button>
+    </div>
+  </form>
+</dialog>
 </body></html>
