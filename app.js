@@ -384,7 +384,48 @@ $("cancel-feed").onclick=()=>{
     });
   });
 
-  const params=new URLSearchParams(location.search);
-  sb.auth.onAuthStateChange((_event,session)=>{user=session?.user||null;init();});
-  init().then(async()=>{if(user&&params.get("pet")){await refreshData();const p=pets.find(x=>x.public_token===params.get("pet"));if(p){const m=meals.find(x=>x.pet_id===p.id);if(m)openFeed(p.id,m.id);}}});
+
+const params = new URLSearchParams(location.search);
+let nfcPromptOpened = false;
+let initQueue = Promise.resolve();
+
+async function initializeAndHandleNfc() {
+  await init();
+
+  if (!user || !params.get("pet") || nfcPromptOpened) return;
+
+  const petToken = params.get("pet");
+  const p = pets.find(x => x.public_token === petToken);
+
+  if (!p) {
+    msg("找不到這隻寵物，請確認 NFC 標籤。");
+    return;
+  }
+
+  const m = meals.find(x => x.pet_id === p.id);
+
+  if (!m) {
+    msg("這隻寵物尚未設定餐次。");
+    return;
+  }
+
+  nfcPromptOpened = true;
+  openFeed(p.id, m.id);
+}
+
+function queueInitialization() {
+  initQueue = initQueue
+    .then(initializeAndHandleNfc)
+    .catch(error => {
+      console.error("PetFeeder 初始化失敗：", error);
+      msg("網頁載入時發生問題，請重新整理。");
+    });
+}
+
+sb.auth.onAuthStateChange(() => {
+  setTimeout(queueInitialization, 0);
+});
+
+queueInitialization();
+
 })();
