@@ -6,6 +6,8 @@
   <title>PetFeeder｜寵物餵食紀錄</title><link rel="stylesheet" href="./styles.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
+<script src="./config.js"></script>
+<script src="./app.js"></script>
 <body>
 <header><div class="brand">🐾 <span>PetFeeder</span></div><div id="user-area"></div></header>
 <main>
@@ -191,7 +193,6 @@
   </form>
 </dialog>
 <template id="meal-row-template"><div class="meal-row"><input class="meal-name" placeholder="餐名，例如：早餐" required maxlength="40"><input class="meal-time" type="time" required><button type="button" class="remove-meal secondary">移除</button></div></template>
-<script src="./config.js"></script><script src="./app.js"></script>
 
 <dialog id="stool-dialog">
   <form method="dialog" id="stool-form">
