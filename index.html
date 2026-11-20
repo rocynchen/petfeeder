@@ -13,11 +13,29 @@
   <section id="setup" class="panel hidden">
     <h1>設定 PetFeeder</h1><p>請先在 <code>config.js</code> 填入 Supabase URL 與 anon key，再重新整理頁面。</p>
   </section>
-  <section id="auth" class="panel hidden">
-    <h1>歡迎使用 PetFeeder</h1><p>輸入電子郵件，我們會寄送安全登入連結。</p>
-    <form id="login-form"><input id="email" type="email" placeholder="電子郵件" required><button>寄送登入連結</button></form>
-    <p id="auth-message" class="muted"></p>
-  </section>
+<section id="auth" class="panel hidden">
+  <h1>歡迎使用 PetFeeder</h1>
+  <p>輸入電子郵件，我們會寄送登入驗證碼。</p>
+
+  <form id="login-form">
+    <input id="email" type="email" placeholder="電子郵件" required>
+    <button type="submit">寄送驗證碼</button>
+  </form>
+
+  <form id="otp-form" class="hidden">
+    <input
+      id="otp-token"
+      type="text"
+      inputmode="numeric"
+      autocomplete="one-time-code"
+      placeholder="輸入 Email 驗證碼"
+      required
+    >
+    <button type="submit">驗證並登入</button>
+  </form>
+
+  <p id="auth-message" class="muted"></p>
+</section>
   <section id="app" class="hidden">
     <div class="welcome"><div><p class="eyebrow">YOUR FAMILY SPACE</p><h1>寵物餵食管理</h1><p id="family-name" class="muted"></p></div><button id="signout" class="secondary">登出</button></div>
     <div id="family-setup" class="panel hidden"><h2>建立家庭</h2><form id="create-family"><input id="new-family-name" placeholder="家庭名稱，例如：我們家" required><button>建立家庭</button></form><p class="muted">建立後可邀請家人加入，共同查看餵食紀錄。</p>

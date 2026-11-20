@@ -16,10 +16,40 @@
     show("auth",!user); show("app",!!user);
     if(user) await load();
   }
-  $("login-form").addEventListener("submit",async e=>{
-    e.preventDefault(); const {error}=await sb.auth.signInWithOtp({email:$("email").value,options:{emailRedirectTo:location.href}});
-    $("auth-message").textContent=error?.message || "登入連結已寄出，請查看信箱。";
+  $("login-form").addEventListener("submit", async e => {
+  e.preventDefault();
+
+  const email = $("email").value.trim();
+  const { error } = await sb.auth.signInWithOtp({ email });
+
+  if (error) {
+    $("auth-message").textContent = "寄送失敗：" + error.message;
+    return;
+  }
+
+  $("otp-form").classList.remove("hidden");
+  $("auth-message").textContent = "驗證碼已寄出，請查看信箱。";
+});
+
+$("otp-form").addEventListener("submit", async e => {
+  e.preventDefault();
+
+  const email = $("email").value.trim();
+  const token = $("otp-token").value.trim();
+
+  const { error } = await sb.auth.verifyOtp({
+    email,
+    token,
+    type: "email"
   });
+
+  if (error) {
+    $("auth-message").textContent = "驗證失敗：" + error.message;
+    return;
+  }
+
+  $("auth-message").textContent = "登入成功，正在載入 PetFeeder…";
+});
   $("signout").onclick=async()=>{await sb.auth.signOut();location.reload();};
   async function load() {
     const {data:m,error}=await sb.from("household_members").select("household_id,households(id,name,invite_code,line_group_id)").eq("user_id",user.id).limit(1).maybeSingle();
