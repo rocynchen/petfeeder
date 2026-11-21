@@ -36,10 +36,11 @@ Deno.serve(async req => {
     });
   }
 
-  const { feeding_id } = await req.json();
+  const body = await req.json();
+  const { feeding_id, pad_change_id } = body;
 
-  if (!feeding_id) {
-    return new Response("Missing feeding_id", {
+  if (!!feeding_id === !!pad_change_id) {
+    return new Response("Provide exactly one record ID", {
       status: 400,
       headers: corsHeaders,
     });
@@ -50,23 +51,86 @@ Deno.serve(async req => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   );
 
-  const { data: f, error } = await admin
-    .from("feedings")
-    .select("fed_at,feeding_date,household_id,pets(name),meal_types(name),profiles(display_name)")
-    .eq("id", feeding_id)
-    .single();
+  let householdId: string;
+  let pet: string;
+  let who: string;
+  let message: string;
+  let when: string;
 
-  if (error || !f) {
-    return new Response("Not found", {
-      status: 404,
-      headers: corsHeaders,
+  if (feeding_id) {
+    const { data: f, error } = await admin
+      .from("feedings")
+      .select("fed_at,household_id,pets(name),meal_types(name),profiles(display_name)")
+      .eq("id", feeding_id)
+      .single();
+
+    if (error || !f) {
+      return new Response("Not found", {
+        status: 404,
+        headers: corsHeaders,
+      });
+    }
+
+    householdId = f.household_id;
+    pet = (f.pets as any)?.name || "寵物";
+    who = (f.profiles as any)?.display_name || "家庭成員";
+
+    const meal = (f.meal_types as any)?.name || "餐次";
+
+    when = new Date(f.fed_at).toLocaleString("zh-TW", {
+      timeZone: "Asia/Taipei",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
     });
+
+    message =
+      `🐾 PetFeeder 餵食紀錄\n寵物：${pet}\n餐次：${meal}\n餵食者：${who}\n時間：${when}`;
+
+  } else {
+        const { data: p, error } = await admin
+      .from("pad_changes")
+      .select("changed_at,household_id,recorded_by,pets(name)")
+      .eq("id", pad_change_id)
+      .single();
+
+    if (error || !p) {
+      return new Response("Not found", {
+        status: 404,
+        headers: corsHeaders,
+      });
+    }
+
+    const { data: profile } = await admin
+      .from("profiles")
+      .select("display_name")
+      .eq("id", p.recorded_by)
+      .maybeSingle();
+
+    householdId = p.household_id;
+    pet = (p.pets as any)?.name || "寵物";
+    who = profile?.display_name || "家庭成員";
+    when = new Date(p.changed_at).toLocaleString("zh-TW", {
+      timeZone: "Asia/Taipei",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+
+    message =
+      `🐶 PetFeeder 尿墊更換紀錄\n寵物：${pet}\n更換人：${who}\n時間：${when}`;
   }
 
   const { data: member } = await admin
     .from("household_members")
     .select("household_id")
-    .eq("household_id", f.household_id)
+    .eq("household_id", householdId)
     .eq("user_id", user.id)
     .maybeSingle();
 
@@ -80,7 +144,7 @@ Deno.serve(async req => {
   const { data: h } = await admin
     .from("households")
     .select("line_group_id")
-    .eq("id", f.household_id)
+    .eq("id", householdId)
     .single();
 
   if (!h?.line_group_id) {
@@ -99,20 +163,6 @@ Deno.serve(async req => {
     });
   }
 
-  const pet = (f.pets as any)?.name || "寵物";
-  const meal = (f.meal_types as any)?.name || "餐次";
-  const who = (f.profiles as any)?.display_name || "家庭成員";
-
-  const when = new Date(f.fed_at).toLocaleString("zh-TW", {
-    timeZone: "Asia/Taipei",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
-
   const res = await fetch("https://api.line.me/v2/bot/message/push", {
     method: "POST",
     headers: {
@@ -123,7 +173,7 @@ Deno.serve(async req => {
       to: h.line_group_id,
       messages: [{
         type: "text",
-        text: `🐾 PetFeeder 餵食紀錄\n寵物：${pet}\n餐次：${meal}\n餵食者：${who}\n時間：${when}`,
+        text: message,
       }],
     }),
   });

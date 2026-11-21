@@ -6,6 +6,7 @@
   if (!cfg.SUPABASE_URL || !cfg.SUPABASE_ANON_KEY || cfg.SUPABASE_URL.includes("YOUR_")) { show("setup"); return; }
   const sb = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
   let user=null, household=null, pets=[], meals=[], feedings=[], historyFeedings=[], stoolRecords=[], activePet=null, members=[], historyMonth=new Date(), selectedHistoryDate="", selectedFeeder="all", selectedPet="all";
+let padChanges = [];
 let householdChannel = null;
   const esc = s => String(s ?? "").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const dateKey = () => new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Taipei"}).format(new Date());
@@ -89,18 +90,19 @@ householdChannel = sb.channel("household-" + household.id)
     const nextMonthStart=new Date(year,month+1,1).toLocaleDateString("en-CA");
 
 
-const [p,m,f,h,profile,s]=await Promise.all([
+const [p,m,f,h,profile,s,pc]=await Promise.all([
   sb.from("pets").select("*").eq("household_id",household.id).eq("active",true).order("created_at"),
   sb.from("meal_types").select("*").eq("household_id",household.id).eq("active",true).order("sort_order"),
   sb.from("feedings").select("*,pets(name),meal_types(name),profiles(display_name)").eq("household_id",household.id).gte("fed_at",new Date(Date.now()-30*86400000).toISOString()).order("fed_at",{ascending:false}),
   sb.from("feedings").select("*,pets(name),meal_types(name),profiles(display_name)").eq("household_id",household.id).gte("feeding_date",monthStart).lt("feeding_date",nextMonthStart).order("fed_at",{ascending:false}),
   sb.from("profiles").select("display_name").eq("id",user.id).maybeSingle(),
-  sb.from("stool_records").select("*").eq("household_id",household.id).order("recorded_at",{ascending:false})
+  sb.from("stool_records").select("*").eq("household_id",household.id).order("recorded_at",{ascending:false}),
+sb.from("pad_changes").select("*,pets(name)").eq("household_id",household.id).order("changed_at",{ascending:false})
 ]);
 
 
-    if(p.error||m.error||f.error||h.error||s.error){
-      console.error(p.error,m.error,f.error,h.error,s.error);
+if(p.error||m.error||f.error||h.error||s.error||pc.error){
+  console.error(p.error,m.error,f.error,h.error,s.error,pc.error);
       msg("載入資料失敗，請稍後再試。");
       return;
     }
@@ -110,6 +112,7 @@ const [p,m,f,h,profile,s]=await Promise.all([
     feedings=f.data||[];
     historyFeedings=h.data||[];
     stoolRecords=s.data||[];
+padChanges=pc.data||[];
 
     const {data:memberRows,error:memberError}=await sb.from("household_members").select("user_id,role").eq("household_id",household.id);
 
@@ -145,6 +148,7 @@ const [p,m,f,h,profile,s]=await Promise.all([
     renderHistory();
     renderHouseholdMembers();
     renderStoolRecords();
+renderPadChanges();
   }
 
 
@@ -219,7 +223,49 @@ const recordedAt=new Date(recordedValue).toISOString();
     saveButton.disabled=false;
   }
 });
+$("add-pad-change").onclick = async () => {
+  if (!pets.length) {
+    msg("請先新增寵物。");
+    return;
+  }
 
+  const button = $("add-pad-change");
+  button.disabled = true;
+
+  try {
+    const { data, error } = await sb
+      .from("pad_changes")
+      .insert({
+        household_id: household.id,
+        pet_id: pets[0].id,
+        recorded_by: user.id
+      })
+      .select("id")
+      .single();
+
+    if (error) throw error;
+
+    const { error: pushError } = await sb.functions.invoke(
+      "line-push",
+      { body: { pad_change_id: data.id } }
+    );
+
+    await refreshData();
+
+    if (pushError) {
+      console.error("尿墊紀錄已儲存，但 LINE 通知失敗：", pushError);
+      msg("尿墊更換紀錄已儲存，但 LINE 通知未成功。");
+    } else {
+      msg("尿墊更換紀錄已儲存，LINE 通知已送出！");
+    }
+
+  } catch (error) {
+    console.error(error);
+    msg("尿墊更換紀錄失敗：" + error.message);
+  } finally {
+    button.disabled = false;
+  }
+};
 function renderStoolRecords(){
   const container=$("stool-record-list");
   if(!container)return;
@@ -254,7 +300,44 @@ function renderStoolRecords(){
     }).join("")
     :'<p class="muted">目前尚無異常便便紀錄。</p>';
 }
+function renderPadChanges(){
+  const lastContainer=$("pad-last-change");
+  const listContainer=$("pad-change-list");
 
+  if(!lastContainer||!listContainer)return;
+
+  if(!padChanges.length){
+    lastContainer.innerHTML='<p class="muted">尚無尿墊更換紀錄。</p>';
+    listContainer.innerHTML='<p class="muted">目前尚無尿墊更換紀錄。</p>';
+    return;
+  }
+
+  const latest=padChanges[0];
+  const latestMember=members.find(m=>m.id===latest.recorded_by);
+
+  lastContainer.innerHTML=`
+    <p><strong>最近更換：</strong>${esc(timeText(latest.changed_at))}</p>
+    <p class="muted">更換人：${esc(latestMember?.display_name||"家庭成員")}</p>
+  `;
+
+  listContainer.innerHTML=padChanges.map(record=>{
+    const pet=pets.find(p=>p.id===record.pet_id);
+    const member=members.find(m=>m.id===record.recorded_by);
+
+    return `
+      <div class="meal-item">
+        <div>
+          <strong>🐶 ${esc(pet?.name||"寵物")} · 尿墊已更換</strong>
+          <br>
+          <span class="muted">
+            ${esc(timeText(record.changed_at))}
+            ｜更換人：${esc(member?.display_name||"家庭成員")}
+          </span>
+        </div>
+      </div>
+    `;
+  }).join("");
+}
 function renderHouseholdMembers(){
   const container=$("household-members-list");
   if(!container)return;
