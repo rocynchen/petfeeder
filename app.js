@@ -6,6 +6,7 @@
   if (!cfg.SUPABASE_URL || !cfg.SUPABASE_ANON_KEY || cfg.SUPABASE_URL.includes("YOUR_")) { show("setup"); return; }
   const sb = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
   let user=null, household=null, pets=[], meals=[], feedings=[], historyFeedings=[], stoolRecords=[], activePet=null, members=[], historyMonth=new Date(), selectedHistoryDate="", selectedFeeder="all", selectedPet="all";
+let householdChannel = null;
   const esc = s => String(s ?? "").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const dateKey = () => new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Taipei"}).format(new Date());
   const timeText = v => new Date(v).toLocaleString("zh-TW",{timeZone:"Asia/Taipei",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hour12:false});
@@ -61,9 +62,23 @@ $("otp-form").addEventListener("submit", async e => {
     $("invite-code").textContent=household.invite_code;
     $("line-status").textContent=household.line_group_id?"已綁定 LINE 群組 ✓":"尚未綁定 LINE 群組";
     await refreshData();
-    const channel=sb.channel("household-"+household.id)
-      .on("postgres_changes",{event:"*",schema:"public",table:"feedings",filter:"household_id=eq."+household.id},refreshData)
-      .subscribe();
+if (householdChannel) {
+  await sb.removeChannel(householdChannel);
+  householdChannel = null;
+}
+
+householdChannel = sb.channel("household-" + household.id)
+  .on(
+    "postgres_changes",
+    {
+      event: "*",
+      schema: "public",
+      table: "feedings",
+      filter: "household_id=eq." + household.id
+    },
+    refreshData
+  )
+  .subscribe();
   }
   async function refreshData(){
     if(!household)return;
