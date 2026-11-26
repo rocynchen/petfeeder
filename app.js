@@ -300,15 +300,25 @@ $("add-bath").onclick=async()=>{
   if(!petId||!household||!user)return;
   button.disabled=true;
   try {
-    const {error}=await sb.from("bath_records").insert({
+    const {data,error}=await sb.from("bath_records").insert({
       household_id:household.id, pet_id:petId, recorded_by:user.id
-    });
+    }).select("id").single();
     if(error){
       msg("洗澡紀錄儲存失敗："+error.message);
       return;
     }
+    const {data:notification,error:pushError}=await sb.functions.invoke("line-push",{
+      body:{bath_record_id:data.id}
+    });
     await refreshData();
-    msg("洗澡紀錄已儲存。");
+    if(notification?.sent===true){
+      msg("洗澡紀錄已儲存，LINE 通知已送出！");
+    }else if(notification?.reason==="LINE group not connected"){
+      msg("洗澡紀錄已儲存，家庭尚未綁定 LINE 群組。");
+    }else{
+      console.error("洗澡紀錄已儲存，但 LINE 通知失敗",pushError);
+      msg("洗澡紀錄已儲存，但 LINE 通知未成功。");
+    }
   } finally {
     button.disabled=!pets.length;
   }

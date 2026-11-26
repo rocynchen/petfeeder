@@ -37,9 +37,10 @@ Deno.serve(async req => {
   }
 
   const body = await req.json();
-  const { feeding_id, pad_change_id } = body;
+  const { feeding_id, pad_change_id, bath_record_id } = body ?? {};
 
-  if (!!feeding_id === !!pad_change_id) {
+  const recordIds = [feeding_id, pad_change_id, bath_record_id].filter(id => id != null);
+  if (recordIds.length !== 1 || typeof recordIds[0] !== "string" || !recordIds[0]) {
     return new Response("Provide exactly one record ID", {
       status: 400,
       headers: corsHeaders,
@@ -91,10 +92,13 @@ Deno.serve(async req => {
       `🐾 PetFeeder 餵食紀錄\n寵物：${pet}\n餐次：${meal}\n餵食者：${who}\n時間：${when}`;
 
   } else {
-        const { data: p, error } = await admin
-      .from("pad_changes")
-      .select("changed_at,household_id,recorded_by,pets(name)")
-      .eq("id", pad_change_id)
+    const isBath = !!bath_record_id;
+    const { data: p, error } = await admin
+      .from(isBath ? "bath_records" : "pad_changes")
+      .select(isBath
+        ? "recorded_at:bathed_at,household_id,recorded_by,pets(name)"
+        : "recorded_at:changed_at,household_id,recorded_by,pets(name)")
+      .eq("id", bath_record_id ?? pad_change_id)
       .single();
 
     if (error || !p) {
@@ -113,7 +117,7 @@ Deno.serve(async req => {
     householdId = p.household_id;
     pet = (p.pets as any)?.name || "寵物";
     who = profile?.display_name || "家庭成員";
-    when = new Date(p.changed_at).toLocaleString("zh-TW", {
+    when = new Date(p.recorded_at).toLocaleString("zh-TW", {
       timeZone: "Asia/Taipei",
       year: "numeric",
       month: "2-digit",
@@ -123,8 +127,9 @@ Deno.serve(async req => {
       hour12: false,
     });
 
-    message =
-      `🐶 PetFeeder 尿墊更換紀錄\n寵物：${pet}\n更換人：${who}\n時間：${when}`;
+    message = isBath
+      ? `🛁 PetFeeder 洗澡紀錄\n寵物：${pet}\n記錄人：${who}\n時間：${when}`
+      : `🐶 PetFeeder 尿墊更換紀錄\n寵物：${pet}\n更換人：${who}\n時間：${when}`;
   }
 
   const { data: member } = await admin
