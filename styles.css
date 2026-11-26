@@ -30,6 +30,16 @@ header {
   text-align: right;
 }
 
+#signout {
+  width: 100%;
+  padding: 12px 20px;
+  border: 1px solid var(--border, #ece8f4);
+  border-radius: 18px;
+  background: var(--surface, #fff);
+  color: #385440;
+  text-align: left;
+}
+
 #family-name {
   margin: 0;
 }
@@ -341,6 +351,11 @@ header {
 }
 
 @media (max-width: 480px) {
+  #signout {
+    padding-inline: 16px;
+    border-radius: 16px;
+  }
+
   .calendar-weekdays,
   .calendar-grid {
     gap: 3px;
