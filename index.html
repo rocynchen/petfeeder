@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#f6f4ef"><meta name="description" content="PetFeeder 寵物餵食紀錄">
-  <title>PetFeeder｜寵物餵食紀錄</title><link rel="stylesheet" href="./styles.css?v=care-history">
+  <title>PetFeeder｜寵物餵食紀錄</title><link rel="stylesheet" href="./styles.css?v=record-types">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 
@@ -78,7 +78,7 @@
   </div>
   <section class="panel">
     <h3>🛁 洗澡紀錄</h3>
-    <p id="bath-latest" class="muted">尚無洗澡紀錄。</p>
+    <p id="bath-no-pets" class="muted hidden">請先新增寵物。</p>
     <label id="bath-pet-label" class="hidden" for="bath-pet">寵物</label>
     <select id="bath-pet" class="hidden"></select>
     <button id="add-bath" type="button" disabled>＋ 已洗澡</button>
@@ -87,31 +87,15 @@
     <h3>🐶 尿墊更換紀錄</h3>
     <p class="muted">記錄每次更換尿墊的時間與更換人。</p>
 
-    <div id="pad-last-change">
-      <p class="muted">尚無更換紀錄。</p>
-    </div>
-
     <button type="button" id="add-pad-change">＋ 已更換尿墊</button>
   </section>
 
-  <section class="panel">
-    <h3>📋 尿墊更換歷史</h3>
-    <div id="pad-change-list">
-      <p class="muted">目前尚無尿墊更換紀錄。</p>
-    </div>
-  </section>
   <section class="panel">
     <h3>💩 異常便便紀錄</h3>
     <p class="muted">只需記錄異常情況，正常便便不用特別登記。</p>
     <button type="button" id="add-stool-record">＋ 新增異常紀錄</button>
   </section>
 
-  <section class="panel">
-    <h3>📋 歷史紀錄</h3>
-    <div id="stool-record-list">
-      <p class="muted">目前尚無異常便便紀錄。</p>
-    </div>
-  </section>
 </section> 
  
       <section id="history-page" class="app-page hidden">
@@ -288,5 +272,5 @@
   </form>
 </dialog>
 <script src="./config.js"></script>
-<script src="./app.js?v=bath-line"></script>
+<script src="./app.js?v=record-types"></script>
 </body></html>

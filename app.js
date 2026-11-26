@@ -5,8 +5,7 @@
   const msg = (s) => alert(s);
   if (!cfg.SUPABASE_URL || !cfg.SUPABASE_ANON_KEY || cfg.SUPABASE_URL.includes("YOUR_")) { show("setup"); return; }
   const sb = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
-  let user=null, household=null, pets=[], meals=[], feedings=[], historyRecords=[], stoolRecords=[], activePet=null, members=[], historyMonth=null, selectedHistoryDate="", selectedFeeder="all", selectedPet="all";
-let padChanges = [];
+  let user=null, household=null, pets=[], meals=[], feedings=[], historyRecords=[], activePet=null, members=[], historyMonth=null, selectedHistoryDate="", selectedFeeder="all", selectedPet="all", selectedRecordType="all";
 let householdChannel = null;
   const esc = s => String(s ?? "").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const taipeiDate = new Intl.DateTimeFormat("en-CA", {
@@ -101,18 +100,14 @@ householdChannel = sb.channel("household-" + household.id)
       historyMonth=new Date(`${selectedHistoryDate.slice(0,7)}-01T12:00:00`);
     }
 
-    const [p,m,f,s,pc,b]=await Promise.all([
+    const [p,m,f]=await Promise.all([
       sb.from("pets").select("*").eq("household_id",household.id).eq("active",true).order("created_at"),
       sb.from("meal_types").select("*").eq("household_id",household.id).eq("active",true).order("sort_order"),
       sb.from("feedings").select("*,pets(name),meal_types(name),profiles(display_name)").eq("household_id",household.id).gte("fed_at",new Date(Date.now()-30*86400000).toISOString()).order("fed_at",{ascending:false}),
-      sb.from("stool_records").select("*").eq("household_id",household.id).order("recorded_at",{ascending:false}),
-      sb.from("pad_changes").select("*,pets(name)").eq("household_id",household.id).order("changed_at",{ascending:false}),
-      sb.from("bath_records").select("*,pets(name)").eq("household_id",household.id)
-        .order("bathed_at",{ascending:false}).limit(1).maybeSingle()
     ]);
 
-    if(p.error||m.error||f.error||s.error||pc.error){
-      console.error(p.error,m.error,f.error,s.error,pc.error);
+    if(p.error||m.error||f.error){
+      console.error(p.error,m.error,f.error);
       msg("載入資料失敗，請稍後再試。");
       return;
     }
@@ -120,8 +115,6 @@ householdChannel = sb.channel("household-" + household.id)
     pets=p.data||[];
     meals=m.data||[];
     feedings=f.data||[];
-    stoolRecords=s.data||[];
-    padChanges=pc.data||[];
 
     const {data:memberRows,error:memberError}=await sb.from("household_members").select("user_id,role").eq("household_id",household.id);
 
@@ -148,10 +141,8 @@ householdChannel = sb.channel("household-" + household.id)
     }
 
     renderPets();
-    renderBath(b);
+    renderBathForm();
     renderHouseholdMembers();
-    renderStoolRecords();
-    renderPadChanges();
     await loadHistory();
   }
 
@@ -276,22 +267,15 @@ const stoolTypeLabels={
   other:"其他異常"
 };
 
-function renderBath(result){
+function renderBathForm(){
   const petSelect=$("bath-pet");
   const selected=petSelect.value;
   petSelect.replaceChildren(...pets.map(p=>new Option(p.name,p.id)));
   if(pets.some(p=>p.id===selected))petSelect.value=selected;
   show("bath-pet-label",pets.length>1);
   show("bath-pet",pets.length>1);
-  $("add-bath").disabled=!!result.error||!pets.length;
-
-  const latest=result.data;
-  const name=members.find(member=>member.id===latest?.recorded_by)?.display_name||"家庭成員";
-  $("bath-latest").textContent=result.error
-    ? "暫時無法載入洗澡紀錄。"
-    : latest
-      ? `最近洗澡：${latest.pets?.name||"寵物"} · ${timeText(latest.bathed_at)} · ${name}`
-      : pets.length ? "尚無洗澡紀錄。" : "請先新增寵物。";
+  $("add-bath").disabled=!pets.length;
+  show("bath-no-pets",!pets.length);
 }
 
 $("add-bath").onclick=async()=>{
@@ -324,72 +308,6 @@ $("add-bath").onclick=async()=>{
   }
 };
 
-function renderStoolRecords(){
-  const container=$("stool-record-list");
-  if(!container)return;
-
-  container.innerHTML=stoolRecords.length
-    ?stoolRecords.map(record=>{
-      const pet=pets.find(p=>p.id===record.pet_id);
-      const member=members.find(m=>m.id===record.recorded_by);
-
-      return `<div class="meal-item">
-        <div>
-          <strong>🐾 ${esc(pet?.name||"寵物")} · ${stoolTypeLabels[record.stool_type]||"異常便便"}</strong>
-          <br>
-          <span class="muted">
-            ${esc(timeText(record.recorded_at))}
-            ｜紀錄者：${esc(member?.display_name||"家庭成員")}
-          </span>
-          ${record.symptoms?.length
-            ?`<p class="muted">症狀：${record.symptoms.map(esc).join("、")}</p>`
-            :""}
-          ${record.note
-            ?`<p>${esc(record.note)}</p>`
-            :""}
-        </div>
-      </div>`;
-    }).join("")
-    :'<p class="muted">目前尚無異常便便紀錄。</p>';
-}
-function renderPadChanges(){
-  const lastContainer=$("pad-last-change");
-  const listContainer=$("pad-change-list");
-
-  if(!lastContainer||!listContainer)return;
-
-  if(!padChanges.length){
-    lastContainer.innerHTML='<p class="muted">尚無尿墊更換紀錄。</p>';
-    listContainer.innerHTML='<p class="muted">目前尚無尿墊更換紀錄。</p>';
-    return;
-  }
-
-  const latest=padChanges[0];
-  const latestMember=members.find(m=>m.id===latest.recorded_by);
-
-  lastContainer.innerHTML=`
-    <p><strong>最近更換：</strong>${esc(timeText(latest.changed_at))}</p>
-    <p class="muted">更換人：${esc(latestMember?.display_name||"家庭成員")}</p>
-  `;
-
-  listContainer.innerHTML=padChanges.map(record=>{
-    const pet=pets.find(p=>p.id===record.pet_id);
-    const member=members.find(m=>m.id===record.recorded_by);
-
-    return `
-      <div class="meal-item">
-        <div>
-          <strong>🐶 ${esc(pet?.name||"寵物")} · 尿墊已更換</strong>
-          <br>
-          <span class="muted">
-            ${esc(timeText(record.changed_at))}
-            ｜更換人：${esc(member?.display_name||"家庭成員")}
-          </span>
-        </div>
-      </div>
-    `;
-  }).join("");
-}
 function renderHouseholdMembers(){
   const container=$("household-members-list");
   if(!container)return;
@@ -539,19 +457,19 @@ $("profile-form").addEventListener("submit",async e=>{
         readMonth("stool_records","*,pets(name)","recorded_at",start,end)
       ]);
       if(loadId!==historyLoadId)return;
-      const careRecord=(record,label,time)=>({
-        label,time,date:dateKey(time),petId:record.pet_id,petName:record.pets?.name,
+      const careRecord=(record,type,label,time)=>({
+        type,label,time,date:dateKey(time),petId:record.pet_id,petName:record.pets?.name,
         memberId:record.recorded_by,memberName:members.find(m=>m.id===record.recorded_by)?.display_name,
         symptoms:record.symptoms,note:record.note
       });
       historyRecords=[
         ...feeding.map(f=>({
-          label:`餵食 · ${f.meal_types?.name||"餐次"}`,time:f.fed_at,date:f.feeding_date,
+          type:"feeding",label:`餵食 · ${f.meal_types?.name||"餐次"}`,time:f.fed_at,date:f.feeding_date,
           petId:f.pet_id,petName:f.pets?.name,memberId:f.fed_by,memberName:f.profiles?.display_name
         })),
-        ...pad.map(p=>careRecord(p,"更換尿墊",p.changed_at)),
-        ...bath.map(b=>careRecord(b,"洗澡",b.bathed_at)),
-        ...stool.map(s=>careRecord(s,`異常便便 · ${stoolTypeLabels[s.stool_type]||"其他異常"}`,s.recorded_at))
+        ...pad.map(p=>careRecord(p,"pad","更換尿墊",p.changed_at)),
+        ...bath.map(b=>careRecord(b,"bath","洗澡",b.bathed_at)),
+        ...stool.map(s=>careRecord(s,"stool",`異常便便 · ${stoolTypeLabels[s.stool_type]||"其他異常"}`,s.recorded_at))
       ].sort((a,b)=>new Date(b.time)-new Date(a.time));
       historyError=false;
     } catch(error){
@@ -570,7 +488,12 @@ $("profile-form").addEventListener("submit",async e=>{
     const firstDay=new Date(year,month,1).getDay();
     const daysInMonth=new Date(year,month+1,0).getDate();
 
-    const recordDates=new Set(historyRecords.map(record=>record.date));
+    const matchingRecords=historyRecords.filter(record=>
+      (selectedRecordType==="all"||record.type===selectedRecordType) &&
+      (selectedPet==="all"||record.petId===selectedPet) &&
+      (selectedFeeder==="all"||record.memberId===selectedFeeder)
+    );
+    const recordDates=new Set(matchingRecords.map(record=>record.date));
     const calendarCells=Array(firstDay).fill('<span class="calendar-empty"></span>');
     for(let day=1;day<=daysInMonth;day++){
       const date=`${year}-${String(month+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
@@ -581,11 +504,7 @@ $("profile-form").addEventListener("submit",async e=>{
     const petOptions=pets.map(p=>`<option value="${esc(p.id)}" ${selectedPet===p.id?"selected":""}>${esc(p.name)}</option>`).join("");
     const feederOptions=members.map(m=>`<option value="${esc(m.id)}" ${selectedFeeder===m.id?"selected":""}>${esc(m.display_name||"家庭成員")}</option>`).join("");
 
-    const filtered=historyRecords.filter(record=>
-      record.date===selectedHistoryDate &&
-      (selectedPet==="all"||record.petId===selectedPet) &&
-      (selectedFeeder==="all"||record.memberId===selectedFeeder)
-    );
+    const filtered=matchingRecords.filter(record=>record.date===selectedHistoryDate);
 
     $("daily-history").innerHTML=`
       <div class="history-calendar">
@@ -598,9 +517,18 @@ $("profile-form").addEventListener("submit",async e=>{
           ${["日","一","二","三","四","五","六"].map(d=>`<span>${d}</span>`).join("")}
         </div>
         <div class="calendar-grid">${calendarCells.join("")}</div>
-        <p class="muted calendar-hint">有圓點的日期有紀錄。</p>
+        <p class="muted calendar-hint">有圓點的日期有符合篩選的紀錄。</p>
       </div>
       <div class="history-filters">
+        <label>紀錄類型
+          <select id="history-type-filter">
+            <option value="all">全部類型</option>
+            <option value="feeding">餵食</option>
+            <option value="bath">洗澡</option>
+            <option value="pad">換尿墊</option>
+            <option value="stool">異常便便</option>
+          </select>
+        </label>
         <label>寵物
           <select id="history-pet-filter">
             <option value="all">全部寵物</option>${petOptions}
@@ -640,6 +568,12 @@ $("profile-form").addEventListener("submit",async e=>{
         renderHistory();
       };
     });
+    $("history-type-filter").value=selectedRecordType;
+    $("history-type-filter").onchange=e=>{
+      selectedRecordType=e.target.value;
+      renderHistory();
+      $("history-type-filter").focus();
+    };
     $("history-pet-filter").onchange=e=>{
       selectedPet=e.target.value;
       renderHistory();
