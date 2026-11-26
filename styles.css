@@ -25,17 +25,9 @@ header {
   text-align: right;
 }
 
-.header-account {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-
-#signout {
-  flex-shrink: 0;
-  padding: 8px 10px;
-  font-size: 1rem;
+.signout-actions {
+  margin-top: 24px;
+  text-align: right;
 }
 
 #family-name {

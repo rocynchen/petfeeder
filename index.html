@@ -3,17 +3,14 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#f6f4ef"><meta name="description" content="PetFeeder 寵物餵食紀錄">
-  <title>PetFeeder｜寵物餵食紀錄</title><link rel="stylesheet" href="./styles.css?v=account-header">
+  <title>PetFeeder｜寵物餵食紀錄</title><link rel="stylesheet" href="./styles.css?v=settings-signout">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 
 <body>
 <header>
   <div class="brand">🐾 <span>PetFeeder</span></div>
-  <div id="header-account" class="header-account hidden">
-    <span id="user-area"></span>
-    <button id="signout" type="button" class="secondary">登出</button>
-  </div>
+  <span id="user-area"></span>
 </header>
 <main>
   <section id="setup" class="panel hidden">
@@ -51,6 +48,9 @@
   <input id="join-code" placeholder="輸入家人的邀請碼" required>
   <button class="secondary">加入家庭</button>
 </form>
+<div class="signout-actions">
+  <button type="button" class="secondary" data-signout>登出</button>
+</div>
 </div>
     <div id="dashboard" class="hidden">
       <div class="welcome">
@@ -119,7 +119,7 @@
 
       <section id="settings-page" class="app-page hidden">
         <div class="page-heading">
-          <h2>家庭設定</h2>
+          <h2>設定</h2>
           <p class="muted">管理個人資料、家庭成員與通知</p>
         </div>
 
@@ -186,6 +186,9 @@
           </div>
           <div id="household-members-list"></div>
         </section>
+        <div class="signout-actions">
+          <button id="signout" type="button" class="secondary" data-signout>登出</button>
+        </div>
       </section>
 
 <nav id="bottom-nav" class="app-nav" aria-label="主要導覽">
@@ -198,8 +201,8 @@
   <button type="button" class="nav-item" data-page="care-page" data-title="每日照護">
     <span class="nav-icon">🐾</span><span>每日照護</span>
   </button>
-  <button type="button" class="nav-item" data-page="settings-page" data-title="家庭設定">
-    <span class="nav-icon">⚙</span><span>家庭設定</span>
+  <button type="button" class="nav-item" data-page="settings-page" data-title="設定">
+    <span class="nav-icon">⚙</span><span>設定</span>
   </button>
 </nav>
 
@@ -278,5 +281,5 @@
   </form>
 </dialog>
 <script src="./config.js"></script>
-<script src="./app.js?v=account-header"></script>
+<script src="./app.js?v=settings-signout"></script>
 </body></html>

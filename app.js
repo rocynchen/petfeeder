@@ -14,7 +14,6 @@ let householdChannel = null;
   async function init() {
     const {data:{session}} = await sb.auth.getSession();
     user=session?.user || null;
-    show("header-account",!!user);
     $("user-area").textContent="";
     $("profile-email").textContent=user?.email || "";
     show("auth",!user); show("app",!!user);
@@ -60,7 +59,9 @@ $("otp-form").addEventListener("submit", async e => {
 
   $("auth-message").textContent = "登入成功，正在載入 PetFeeder…";
 });
-  $("signout").onclick=async()=>{await sb.auth.signOut();location.reload();};
+  document.querySelectorAll("[data-signout]").forEach(button=>{
+    button.onclick=async()=>{await sb.auth.signOut();location.reload();};
+  });
   async function load() {
     const {data:m,error}=await sb.from("household_members").select("household_id,households(id,name,invite_code,line_group_id)").eq("user_id",user.id).limit(1).maybeSingle();
     if(error){msg(error.message);return;}
