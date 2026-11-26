@@ -3,12 +3,18 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#f6f4ef"><meta name="description" content="PetFeeder 寵物餵食紀錄">
-  <title>PetFeeder｜寵物餵食紀錄</title><link rel="stylesheet" href="./styles.css?v=profile-email">
+  <title>PetFeeder｜寵物餵食紀錄</title><link rel="stylesheet" href="./styles.css?v=account-header">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 
 <body>
-<header><div class="brand">🐾 <span>PetFeeder</span></div><div id="user-area"></div></header>
+<header>
+  <div class="brand">🐾 <span>PetFeeder</span></div>
+  <div id="header-account" class="header-account hidden">
+    <span id="user-area"></span>
+    <button id="signout" type="button" class="secondary">登出</button>
+  </div>
+</header>
 <main>
   <section id="setup" class="panel hidden">
     <h1>設定 PetFeeder</h1><p>請先在 <code>config.js</code> 填入 Supabase URL 與 anon key，再重新整理頁面。</p>
@@ -37,7 +43,6 @@
   <p id="auth-message" class="muted"></p>
 </section>
   <section id="app" class="hidden">
-    <div class="welcome"><div><p class="eyebrow">YOUR FAMILY SPACE</p><h1>寵物餵食管理</h1><p id="family-name" class="muted"></p></div><button id="signout" class="secondary">登出</button></div>
     <div id="family-setup" class="panel hidden"><h2>建立家庭</h2><form id="create-family"><input id="new-family-name" placeholder="家庭名稱，例如：我們家" required><button>建立家庭</button></form><p class="muted">建立後可邀請家人加入，共同查看餵食紀錄。</p>
 <hr>
 <h3>加入現有家庭</h3>
@@ -50,7 +55,7 @@
     <div id="dashboard" class="hidden">
       <div class="welcome">
         <div>
-          <p class="eyebrow">YOUR FAMILY SPACE</p>
+          <p id="family-name" class="muted"></p>
           <h1 id="page-title">今日餵食</h1>
         </div>
       </div>
@@ -273,5 +278,5 @@
   </form>
 </dialog>
 <script src="./config.js"></script>
-<script src="./app.js?v=profile-email"></script>
+<script src="./app.js?v=account-header"></script>
 </body></html>

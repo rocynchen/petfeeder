@@ -14,6 +14,7 @@ let householdChannel = null;
   async function init() {
     const {data:{session}} = await sb.auth.getSession();
     user=session?.user || null;
+    show("header-account",!!user);
     $("user-area").textContent="";
     $("profile-email").textContent=user?.email || "";
     show("auth",!user); show("app",!!user);
