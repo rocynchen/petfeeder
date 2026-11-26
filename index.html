@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#f6f4ef"><meta name="description" content="PetFeeder 寵物餵食紀錄">
-  <title>PetFeeder｜寵物餵食紀錄</title><link rel="stylesheet" href="./styles.css?v=signout-row">
+  <title>PetFeeder｜寵物餵食紀錄</title><link rel="stylesheet" href="./styles.css?v=care-history">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 
@@ -77,6 +77,13 @@
     <p class="muted">記錄寵物的日常健康狀況</p>
   </div>
   <section class="panel">
+    <h3>🛁 洗澡紀錄</h3>
+    <p id="bath-latest" class="muted">尚無洗澡紀錄。</p>
+    <label id="bath-pet-label" class="hidden" for="bath-pet">寵物</label>
+    <select id="bath-pet" class="hidden"></select>
+    <button id="add-bath" type="button" disabled>＋ 已洗澡</button>
+  </section>
+  <section class="panel">
     <h3>🐶 尿墊更換紀錄</h3>
     <p class="muted">記錄每次更換尿墊的時間與更換人。</p>
 
@@ -109,11 +116,11 @@
  
       <section id="history-page" class="app-page hidden">
         <div class="page-heading">
-          <h2>餵食紀錄</h2>
-          <p class="muted">查看家庭成員的餵食紀錄</p>
+          <h2>歷史紀錄</h2>
+          <p class="muted">選擇日期查看當天的餵食與照護紀錄</p>
         </div>
         <section class="panel">
-          <div id="feeding-history"></div>
+          <div id="daily-history"></div>
         </section>
       </section>
 
@@ -195,8 +202,8 @@
   <button type="button" class="nav-item active" data-page="home-page" data-title="今日餵食">
     <span class="nav-icon">⌂</span><span>首頁</span>
   </button>
-  <button type="button" class="nav-item" data-page="history-page" data-title="餵食紀錄">
-    <span class="nav-icon">▦</span><span>餵食紀錄</span>
+  <button type="button" class="nav-item" data-page="history-page" data-title="歷史紀錄">
+    <span class="nav-icon">▦</span><span>歷史紀錄</span>
   </button>
   <button type="button" class="nav-item" data-page="care-page" data-title="每日照護">
     <span class="nav-icon">🐾</span><span>每日照護</span>
@@ -281,5 +288,5 @@
   </form>
 </dialog>
 <script src="./config.js"></script>
-<script src="./app.js?v=settings-signout"></script>
+<script src="./app.js?v=care-history"></script>
 </body></html>

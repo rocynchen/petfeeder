@@ -5,11 +5,14 @@
   const msg = (s) => alert(s);
   if (!cfg.SUPABASE_URL || !cfg.SUPABASE_ANON_KEY || cfg.SUPABASE_URL.includes("YOUR_")) { show("setup"); return; }
   const sb = window.supabase.createClient(cfg.SUPABASE_URL, cfg.SUPABASE_ANON_KEY);
-  let user=null, household=null, pets=[], meals=[], feedings=[], historyFeedings=[], stoolRecords=[], activePet=null, members=[], historyMonth=new Date(), selectedHistoryDate="", selectedFeeder="all", selectedPet="all";
+  let user=null, household=null, pets=[], meals=[], feedings=[], historyRecords=[], stoolRecords=[], activePet=null, members=[], historyMonth=null, selectedHistoryDate="", selectedFeeder="all", selectedPet="all";
 let padChanges = [];
 let householdChannel = null;
   const esc = s => String(s ?? "").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-  const dateKey = () => new Intl.DateTimeFormat("en-CA",{timeZone:"Asia/Taipei"}).format(new Date());
+  const taipeiDate = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Taipei", year: "numeric", month: "2-digit", day: "2-digit"
+  });
+  const dateKey = (value = new Date()) => taipeiDate.format(new Date(value));
   const timeText = v => new Date(v).toLocaleString("zh-TW",{timeZone:"Asia/Taipei",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hour12:false});
   async function init() {
     const {data:{session}} = await sb.auth.getSession();
@@ -93,24 +96,23 @@ householdChannel = sb.channel("household-" + household.id)
   async function refreshData(){
     if(!household)return;
 
-    const year=historyMonth.getFullYear();
-    const month=historyMonth.getMonth();
-    const monthStart=new Date(year,month,1).toLocaleDateString("en-CA");
-    const nextMonthStart=new Date(year,month+1,1).toLocaleDateString("en-CA");
+    if(!selectedHistoryDate){
+      selectedHistoryDate=dateKey();
+      historyMonth=new Date(`${selectedHistoryDate.slice(0,7)}-01T12:00:00`);
+    }
 
+    const [p,m,f,s,pc,b]=await Promise.all([
+      sb.from("pets").select("*").eq("household_id",household.id).eq("active",true).order("created_at"),
+      sb.from("meal_types").select("*").eq("household_id",household.id).eq("active",true).order("sort_order"),
+      sb.from("feedings").select("*,pets(name),meal_types(name),profiles(display_name)").eq("household_id",household.id).gte("fed_at",new Date(Date.now()-30*86400000).toISOString()).order("fed_at",{ascending:false}),
+      sb.from("stool_records").select("*").eq("household_id",household.id).order("recorded_at",{ascending:false}),
+      sb.from("pad_changes").select("*,pets(name)").eq("household_id",household.id).order("changed_at",{ascending:false}),
+      sb.from("bath_records").select("*,pets(name)").eq("household_id",household.id)
+        .order("bathed_at",{ascending:false}).limit(1).maybeSingle()
+    ]);
 
-const [p,m,f,h,s,pc]=await Promise.all([
-  sb.from("pets").select("*").eq("household_id",household.id).eq("active",true).order("created_at"),
-  sb.from("meal_types").select("*").eq("household_id",household.id).eq("active",true).order("sort_order"),
-  sb.from("feedings").select("*,pets(name),meal_types(name),profiles(display_name)").eq("household_id",household.id).gte("fed_at",new Date(Date.now()-30*86400000).toISOString()).order("fed_at",{ascending:false}),
-  sb.from("feedings").select("*,pets(name),meal_types(name),profiles(display_name)").eq("household_id",household.id).gte("feeding_date",monthStart).lt("feeding_date",nextMonthStart).order("fed_at",{ascending:false}),
-  sb.from("stool_records").select("*").eq("household_id",household.id).order("recorded_at",{ascending:false}),
-sb.from("pad_changes").select("*,pets(name)").eq("household_id",household.id).order("changed_at",{ascending:false})
-]);
-
-
-if(p.error||m.error||f.error||h.error||s.error||pc.error){
-  console.error(p.error,m.error,f.error,h.error,s.error,pc.error);
+    if(p.error||m.error||f.error||s.error||pc.error){
+      console.error(p.error,m.error,f.error,s.error,pc.error);
       msg("載入資料失敗，請稍後再試。");
       return;
     }
@@ -118,9 +120,8 @@ if(p.error||m.error||f.error||h.error||s.error||pc.error){
     pets=p.data||[];
     meals=m.data||[];
     feedings=f.data||[];
-    historyFeedings=h.data||[];
     stoolRecords=s.data||[];
-padChanges=pc.data||[];
+    padChanges=pc.data||[];
 
     const {data:memberRows,error:memberError}=await sb.from("household_members").select("user_id,role").eq("household_id",household.id);
 
@@ -146,13 +147,12 @@ padChanges=pc.data||[];
       members=[];
     }
 
-    if(!selectedHistoryDate)selectedHistoryDate=dateKey();
-
     renderPets();
-    renderHistory();
+    renderBath(b);
     renderHouseholdMembers();
     renderStoolRecords();
-renderPadChanges();
+    renderPadChanges();
+    await loadHistory();
   }
 
 
@@ -270,15 +270,53 @@ $("add-pad-change").onclick = async () => {
     button.disabled = false;
   }
 };
+const stoolTypeLabels={
+  soft:"軟便",
+  diarrhea:"腹瀉（水狀）",
+  other:"其他異常"
+};
+
+function renderBath(result){
+  const petSelect=$("bath-pet");
+  const selected=petSelect.value;
+  petSelect.replaceChildren(...pets.map(p=>new Option(p.name,p.id)));
+  if(pets.some(p=>p.id===selected))petSelect.value=selected;
+  show("bath-pet-label",pets.length>1);
+  show("bath-pet",pets.length>1);
+  $("add-bath").disabled=!!result.error||!pets.length;
+
+  const latest=result.data;
+  const name=members.find(member=>member.id===latest?.recorded_by)?.display_name||"家庭成員";
+  $("bath-latest").textContent=result.error
+    ? "暫時無法載入洗澡紀錄。"
+    : latest
+      ? `最近洗澡：${latest.pets?.name||"寵物"} · ${timeText(latest.bathed_at)} · ${name}`
+      : pets.length ? "尚無洗澡紀錄。" : "請先新增寵物。";
+}
+
+$("add-bath").onclick=async()=>{
+  const button=$("add-bath");
+  const petId=$("bath-pet").value;
+  if(!petId||!household||!user)return;
+  button.disabled=true;
+  try {
+    const {error}=await sb.from("bath_records").insert({
+      household_id:household.id, pet_id:petId, recorded_by:user.id
+    });
+    if(error){
+      msg("洗澡紀錄儲存失敗："+error.message);
+      return;
+    }
+    await refreshData();
+    msg("洗澡紀錄已儲存。");
+  } finally {
+    button.disabled=!pets.length;
+  }
+};
+
 function renderStoolRecords(){
   const container=$("stool-record-list");
   if(!container)return;
-
-  const typeLabels={
-    soft:"軟便",
-    diarrhea:"腹瀉（水狀）",
-    other:"其他異常"
-  };
 
   container.innerHTML=stoolRecords.length
     ?stoolRecords.map(record=>{
@@ -287,7 +325,7 @@ function renderStoolRecords(){
 
       return `<div class="meal-item">
         <div>
-          <strong>🐾 ${esc(pet?.name||"寵物")} · ${typeLabels[record.stool_type]||"異常便便"}</strong>
+          <strong>🐾 ${esc(pet?.name||"寵物")} · ${stoolTypeLabels[record.stool_type]||"異常便便"}</strong>
           <br>
           <span class="muted">
             ${esc(timeText(record.recorded_at))}
@@ -456,6 +494,65 @@ $("profile-form").addEventListener("submit",async e=>{
     msg("顯示名稱已更新。");
     await refreshData();
   });
+  let historyLoadId=0;
+  let historyError=false;
+
+  async function loadHistory(){
+    const loadId=++historyLoadId;
+    const year=historyMonth.getFullYear();
+    const month=historyMonth.getMonth();
+    const monthStart=`${year}-${String(month+1).padStart(2,"0")}-01`;
+    const nextMonth=new Date(year,month+1,1);
+    const nextMonthStart=`${nextMonth.getFullYear()}-${String(nextMonth.getMonth()+1).padStart(2,"0")}-01`;
+    const start=`${monthStart}T00:00:00+08:00`;
+    const end=`${nextMonthStart}T00:00:00+08:00`;
+    const householdId=household.id;
+
+    async function readMonth(table,columns,dateColumn,from,to){
+      const rows=[];
+      const pageSize=500;
+      for(let offset=0;;offset+=pageSize){
+        const {data,error}=await sb.from(table).select(columns).eq("household_id",householdId)
+          .gte(dateColumn,from).lt(dateColumn,to).order(dateColumn).order("id")
+          .range(offset,offset+pageSize-1);
+        if(error)throw error;
+        rows.push(...data);
+        if(data.length<pageSize)return rows;
+      }
+    }
+
+    try {
+      const [feeding,pad,bath,stool]=await Promise.all([
+        readMonth("feedings","*,pets(name),meal_types(name),profiles(display_name)","feeding_date",monthStart,nextMonthStart),
+        readMonth("pad_changes","*,pets(name)","changed_at",start,end),
+        readMonth("bath_records","*,pets(name)","bathed_at",start,end),
+        readMonth("stool_records","*,pets(name)","recorded_at",start,end)
+      ]);
+      if(loadId!==historyLoadId)return;
+      const careRecord=(record,label,time)=>({
+        label,time,date:dateKey(time),petId:record.pet_id,petName:record.pets?.name,
+        memberId:record.recorded_by,memberName:members.find(m=>m.id===record.recorded_by)?.display_name,
+        symptoms:record.symptoms,note:record.note
+      });
+      historyRecords=[
+        ...feeding.map(f=>({
+          label:`餵食 · ${f.meal_types?.name||"餐次"}`,time:f.fed_at,date:f.feeding_date,
+          petId:f.pet_id,petName:f.pets?.name,memberId:f.fed_by,memberName:f.profiles?.display_name
+        })),
+        ...pad.map(p=>careRecord(p,"更換尿墊",p.changed_at)),
+        ...bath.map(b=>careRecord(b,"洗澡",b.bathed_at)),
+        ...stool.map(s=>careRecord(s,`異常便便 · ${stoolTypeLabels[s.stool_type]||"其他異常"}`,s.recorded_at))
+      ].sort((a,b)=>new Date(b.time)-new Date(a.time));
+      historyError=false;
+    } catch(error){
+      if(loadId!==historyLoadId)return;
+      console.error("載入歷史紀錄失敗",error);
+      historyRecords=[];
+      historyError=true;
+    }
+    renderHistory();
+  }
+
   function renderHistory(){
     const year=historyMonth.getFullYear();
     const month=historyMonth.getMonth();
@@ -463,23 +560,24 @@ $("profile-form").addEventListener("submit",async e=>{
     const firstDay=new Date(year,month,1).getDay();
     const daysInMonth=new Date(year,month+1,0).getDate();
 
+    const recordDates=new Set(historyRecords.map(record=>record.date));
     const calendarCells=Array(firstDay).fill('<span class="calendar-empty"></span>');
     for(let day=1;day<=daysInMonth;day++){
       const date=`${year}-${String(month+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
-      const hasRecords=historyFeedings.some(f=>f.feeding_date===date);
+      const hasRecords=recordDates.has(date);
       calendarCells.push(`<button type="button" class="calendar-day ${selectedHistoryDate===date?"selected":""} ${hasRecords?"has-records":""}" data-date="${date}">${day}${hasRecords?'<span class="calendar-dot"></span>':""}</button>`);
     }
 
     const petOptions=pets.map(p=>`<option value="${esc(p.id)}" ${selectedPet===p.id?"selected":""}>${esc(p.name)}</option>`).join("");
     const feederOptions=members.map(m=>`<option value="${esc(m.id)}" ${selectedFeeder===m.id?"selected":""}>${esc(m.display_name||"家庭成員")}</option>`).join("");
 
-    const filtered=historyFeedings.filter(f=>
-      f.feeding_date===selectedHistoryDate &&
-      (selectedPet==="all"||f.pet_id===selectedPet) &&
-      (selectedFeeder==="all"||f.fed_by===selectedFeeder)
+    const filtered=historyRecords.filter(record=>
+      record.date===selectedHistoryDate &&
+      (selectedPet==="all"||record.petId===selectedPet) &&
+      (selectedFeeder==="all"||record.memberId===selectedFeeder)
     );
 
-    $("feeding-history").innerHTML=`
+    $("daily-history").innerHTML=`
       <div class="history-calendar">
         <div class="calendar-toolbar">
           <button type="button" class="secondary" id="history-prev">‹</button>
@@ -490,7 +588,7 @@ $("profile-form").addEventListener("submit",async e=>{
           ${["日","一","二","三","四","五","六"].map(d=>`<span>${d}</span>`).join("")}
         </div>
         <div class="calendar-grid">${calendarCells.join("")}</div>
-        <p class="muted calendar-hint">有圓點表示當天有餵食紀錄，點選日期查看。</p>
+        <p class="muted calendar-hint">有圓點的日期有紀錄。</p>
       </div>
       <div class="history-filters">
         <label>寵物
@@ -498,30 +596,35 @@ $("profile-form").addEventListener("submit",async e=>{
             <option value="all">全部寵物</option>${petOptions}
           </select>
         </label>
-        <label>餵食者
+        <label>紀錄者
           <select id="history-feeder-filter">
             <option value="all">所有家庭成員</option>${feederOptions}
           </select>
         </label>
       </div>
-      <h3 class="history-date-title">${selectedHistoryDate==="all"?"全部日期":selectedHistoryDate}</h3>
+      <h3 class="history-date-title">${selectedHistoryDate}</h3>
       <div class="history-record-list">
-        ${filtered.length?filtered.map(f=>`<div class="meal-item"><div><strong>${esc(f.pets?.name||"寵物")} · ${esc(f.meal_types?.name||"餐次")}</strong><br><span class="muted">餵食者：${esc(f.profiles?.display_name||"家庭成員")}　｜　${esc(timeText(f.fed_at))}</span></div></div>`).join(""):'<p class="muted">這一天沒有符合篩選條件的餵食紀錄。</p>'}
+        ${historyError?'<p class="muted">暫時無法載入歷史紀錄，請稍後重新整理。</p>':
+          filtered.length?filtered.map(record=>`<div class="meal-item"><div>
+            <strong>${esc(record.petName||"寵物")} · ${esc(record.label)}</strong><br>
+            <span class="muted">紀錄者：${esc(record.memberName||"家庭成員")}　｜　${esc(timeText(record.time))}</span>
+            ${record.symptoms?.length?`<p class="muted">症狀：${record.symptoms.map(esc).join("、")}</p>`:""}
+            ${record.note?`<p>${esc(record.note)}</p>`:""}
+          </div></div>`).join(""):'<p class="muted">這一天沒有符合篩選條件的紀錄。</p>'}
       </div>`;
 
-    $("history-prev").onclick=async()=>{
-      historyMonth=new Date(year,month-1,1);
-      const day=Math.min(Number(selectedHistoryDate.slice(-2))||1,new Date(historyMonth.getFullYear(),historyMonth.getMonth()+1,0).getDate());
+    const changeMonth=async offset=>{
+      historyMonth=new Date(year,month+offset,1);
+      const day=Math.min(Number(selectedHistoryDate.slice(-2)),new Date(historyMonth.getFullYear(),historyMonth.getMonth()+1,0).getDate());
       selectedHistoryDate=`${historyMonth.getFullYear()}-${String(historyMonth.getMonth()+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
-      await refreshData();
+      $("history-prev").disabled=true;
+      $("history-next").disabled=true;
+      $("daily-history").querySelectorAll(".calendar-day").forEach(button=>{button.disabled=true;});
+      await loadHistory();
     };
-    $("history-next").onclick=async()=>{
-      historyMonth=new Date(year,month+1,1);
-      const day=Math.min(Number(selectedHistoryDate.slice(-2))||1,new Date(historyMonth.getFullYear(),historyMonth.getMonth()+1,0).getDate());
-      selectedHistoryDate=`${historyMonth.getFullYear()}-${String(historyMonth.getMonth()+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
-      await refreshData();
-    };
-    $("feeding-history").querySelectorAll(".calendar-day").forEach(button=>{
+    $("history-prev").onclick=()=>changeMonth(-1);
+    $("history-next").onclick=()=>changeMonth(1);
+    $("daily-history").querySelectorAll(".calendar-day").forEach(button=>{
       button.onclick=()=>{
         selectedHistoryDate=button.dataset.date;
         renderHistory();

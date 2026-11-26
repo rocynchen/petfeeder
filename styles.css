@@ -250,7 +250,8 @@ header {
 
 /* Phase 2 - Feeding history calendar */
 .history-calendar {
-  margin-bottom: 22px;
+  max-width: 22rem;
+  margin: 0 auto 22px;
 }
 
 .calendar-toolbar {
