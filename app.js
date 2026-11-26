@@ -15,6 +15,7 @@ let householdChannel = null;
     const {data:{session}} = await sb.auth.getSession();
     user=session?.user || null;
     $("user-area").textContent="";
+    $("profile-email").textContent=user?.email || "";
     show("auth",!user); show("app",!!user);
     if(user){
       const {data:profile}=await sb.from("profiles").select("display_name").eq("id",user.id).maybeSingle();

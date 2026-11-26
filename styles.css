@@ -388,6 +388,15 @@ header {
   margin: 4px 0 0;
 }
 
+.profile-email {
+  margin: 0 0 16px;
+}
+
+.profile-email dd {
+  margin: 4px 0 0;
+  overflow-wrap: anywhere;
+}
+
 .settings-card form {
   display: grid;
   gap: 10px;
