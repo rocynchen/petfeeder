@@ -11,6 +11,20 @@ html {
   font-size: 106.25%;
 }
 
+header {
+  gap: 12px;
+}
+
+.brand {
+  white-space: nowrap;
+}
+
+#user-area {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
 /* ===== PetFeeder App Navigation ===== */
 .app-page {
   animation: page-in .18s ease-out;
@@ -134,7 +148,14 @@ html {
   }
 
   #feed-dialog .toolbar {
-    gap: 8px;
+    align-items: stretch;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  #feed-dialog .toolbar .icon-btn {
+    align-self: flex-end;
+    order: -1;
   }
 
   #feed-title {

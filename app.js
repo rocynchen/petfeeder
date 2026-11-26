@@ -14,9 +14,15 @@ let householdChannel = null;
   async function init() {
     const {data:{session}} = await sb.auth.getSession();
     user=session?.user || null;
-    $("user-area").textContent=user ? user.email : "";
+    $("user-area").textContent="";
     show("auth",!user); show("app",!!user);
-    if(user) await load();
+    if(user){
+      const {data:profile}=await sb.from("profiles").select("display_name").eq("id",user.id).maybeSingle();
+      const displayName=profile?.display_name?.trim() || "";
+      $("display-name").value=displayName;
+      $("user-area").textContent=displayName || "使用者";
+      await load();
+    }
   }
   $("login-form").addEventListener("submit", async e => {
   e.preventDefault();
@@ -90,12 +96,11 @@ householdChannel = sb.channel("household-" + household.id)
     const nextMonthStart=new Date(year,month+1,1).toLocaleDateString("en-CA");
 
 
-const [p,m,f,h,profile,s,pc]=await Promise.all([
+const [p,m,f,h,s,pc]=await Promise.all([
   sb.from("pets").select("*").eq("household_id",household.id).eq("active",true).order("created_at"),
   sb.from("meal_types").select("*").eq("household_id",household.id).eq("active",true).order("sort_order"),
   sb.from("feedings").select("*,pets(name),meal_types(name),profiles(display_name)").eq("household_id",household.id).gte("fed_at",new Date(Date.now()-30*86400000).toISOString()).order("fed_at",{ascending:false}),
   sb.from("feedings").select("*,pets(name),meal_types(name),profiles(display_name)").eq("household_id",household.id).gte("feeding_date",monthStart).lt("feeding_date",nextMonthStart).order("fed_at",{ascending:false}),
-  sb.from("profiles").select("display_name").eq("id",user.id).maybeSingle(),
   sb.from("stool_records").select("*").eq("household_id",household.id).order("recorded_at",{ascending:false}),
 sb.from("pad_changes").select("*,pets(name)").eq("household_id",household.id).order("changed_at",{ascending:false})
 ]);
@@ -139,10 +144,6 @@ padChanges=pc.data||[];
     }
 
     if(!selectedHistoryDate)selectedHistoryDate=dateKey();
-
-    if(!profile.error && profile.data){
-      $("display-name").value=profile.data.display_name||"";
-    }
 
     renderPets();
     renderHistory();
@@ -447,7 +448,10 @@ $("profile-form").addEventListener("submit",async e=>{
     e.preventDefault();
     const display_name=$("display-name").value.trim();
     const {error}=await sb.from("profiles").update({display_name}).eq("id",user.id);
-    if(error)msg(error.message);else {msg("顯示名稱已更新。");await refreshData();}
+    if(error){msg(error.message);return;}
+    $("user-area").textContent=display_name || "使用者";
+    msg("顯示名稱已更新。");
+    await refreshData();
   });
   function renderHistory(){
     const year=historyMonth.getFullYear();
@@ -579,7 +583,7 @@ $("profile-form").addEventListener("submit",async e=>{
   }
   function openFeed(petId,mealId){
     const p=pets.find(x=>x.id===petId), pm=meals.filter(x=>x.pet_id===petId);
-    $("feed-pet-id").value=petId;$("feed-title").textContent=`你餵了 ${p.name} 嗎？`;
+    $("feed-pet-id").value=petId;$("feed-title").textContent=`你餵了${p.name}嗎？`;
     $("feed-meal").innerHTML=pm.map(m=>`<option value="${m.id}" ${m.id===mealId?"selected":""}>${esc(m.name)}</option>`).join("");
     $("feed-dialog").showModal();
   }
