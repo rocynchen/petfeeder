@@ -84,6 +84,10 @@
     <button id="add-bath" type="button" disabled>＋ 已洗澡</button>
   </section>
   <section class="panel">
+    <h3>驅蟲紀錄</h3>
+    <button id="add-deworming" type="button">＋ 記錄驅蟲</button>
+  </section>
+  <section class="panel">
     <h3>🐶 尿墊更換紀錄</h3>
     <p class="muted">記錄每次更換尿墊的時間與更換人。</p>
 
@@ -287,6 +291,32 @@
     </div>
   </form>
 </dialog>
+<dialog id="deworming-dialog" aria-labelledby="deworming-title">
+  <form id="deworming-form">
+    <h2 id="deworming-title">記錄驅蟲</h2>
+    <label>寵物
+      <select id="deworming-pet" required></select>
+    </label>
+    <label>驅蟲種類
+      <select id="deworming-type" required>
+        <option value="">請選擇</option>
+        <option value="internal">體內驅蟲</option>
+        <option value="external">體外驅蟲</option>
+      </select>
+    </label>
+    <label>本次日期
+      <input id="dewormed-on" type="date" required>
+    </label>
+    <label>下次預計日期（選填）
+      <input id="deworming-due-on" type="date">
+    </label>
+    <p id="deworming-error" class="muted" role="status"></p>
+    <div class="dialog-actions">
+      <button id="cancel-deworming" type="button" class="secondary">取消</button>
+      <button id="save-deworming" type="submit">儲存紀錄</button>
+    </div>
+  </form>
+</dialog>
 <dialog id="first-name-dialog" aria-labelledby="first-name-title">
   <form id="first-name-form">
     <h2 id="first-name-title">要設定顯示名稱嗎？</h2>
@@ -301,5 +331,5 @@
   </form>
 </dialog>
 <script src="./config.js"></script>
-<script src="./app.js?v=first-display-name"></script>
+<script src="./app.js?v=deworming-records"></script>
 </body></html>

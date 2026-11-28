@@ -270,6 +270,56 @@ const stoolTypeLabels={
   diarrhea:"腹瀉（水狀）",
   other:"其他異常"
 };
+const dewormingTypeLabels={internal:"體內驅蟲",external:"體外驅蟲"};
+
+$("add-deworming").onclick=()=>{
+  if(!pets.length){
+    msg("請先新增寵物，再建立驅蟲紀錄。");
+    return;
+  }
+  $("deworming-form").reset();
+  $("deworming-pet").replaceChildren(...pets.map(p=>new Option(p.name,p.id)));
+  const today=dateKey();
+  $("dewormed-on").max=today;
+  $("dewormed-on").value=today;
+  $("deworming-error").textContent="";
+  $("deworming-dialog").showModal();
+};
+
+$("cancel-deworming").onclick=()=>$("deworming-dialog").close();
+$("deworming-form").addEventListener("submit",async e=>{
+  e.preventDefault();
+  const button=$("save-deworming");
+  if(button.disabled)return;
+  const treatedOn=$("dewormed-on").value;
+  const dueOn=$("deworming-due-on").value;
+  const status=$("deworming-error");
+  if(dueOn&&dueOn<=treatedOn){
+    status.textContent="下次預計日期要晚於本次日期。";
+    return;
+  }
+  status.textContent="";
+  button.disabled=true;
+  try {
+    const {error}=await sb.from("deworming_records").insert({
+      household_id:household.id,
+      pet_id:$("deworming-pet").value,
+      recorded_by:user.id,
+      treatment_type:$("deworming-type").value,
+      treated_on:treatedOn,
+      next_due_on:dueOn||null
+    });
+    if(error)throw error;
+    $("deworming-dialog").close();
+    await loadHistory();
+    msg("驅蟲紀錄已儲存。");
+  } catch(error){
+    console.error("驅蟲紀錄儲存失敗",error);
+    status.textContent="儲存失敗，請再試一次。";
+  } finally {
+    button.disabled=false;
+  }
+});
 
 function renderBathForm(){
   const petSelect=$("bath-pet");
@@ -500,15 +550,16 @@ async function saveDisplayName(display_name){
     }
 
     try {
-      const [feeding,pad,bath,stool]=await Promise.all([
+      const [feeding,pad,bath,stool,deworming]=await Promise.all([
         readMonth("feedings","*,pets(name),meal_types(name),profiles(display_name)","feeding_date",monthStart,nextMonthStart),
         readMonth("pad_changes","*,pets(name)","changed_at",start,end),
         readMonth("bath_records","*,pets(name)","bathed_at",start,end),
-        readMonth("stool_records","*,pets(name)","recorded_at",start,end)
+        readMonth("stool_records","*,pets(name)","recorded_at",start,end),
+        readMonth("deworming_records","*,pets(name)","treated_on",monthStart,nextMonthStart)
       ]);
       if(loadId!==historyLoadId)return;
-      const careRecord=(record,type,label,time)=>({
-        type,label,time,date:dateKey(time),petId:record.pet_id,petName:record.pets?.name,
+      const careRecord=(record,type,label,time,date=dateKey(time))=>({
+        type,label,time,date,petId:record.pet_id,petName:record.pets?.name,
         memberId:record.recorded_by,memberName:members.find(m=>m.id===record.recorded_by)?.display_name,
         symptoms:record.symptoms,note:record.note
       });
@@ -519,8 +570,13 @@ async function saveDisplayName(display_name){
         })),
         ...pad.map(p=>careRecord(p,"pad","更換尿墊",p.changed_at)),
         ...bath.map(b=>careRecord(b,"bath","洗澡",b.bathed_at)),
-        ...stool.map(s=>careRecord(s,"stool",`異常便便 · ${stoolTypeLabels[s.stool_type]||"其他異常"}`,s.recorded_at))
-      ].sort((a,b)=>new Date(b.time)-new Date(a.time));
+        ...stool.map(s=>careRecord(s,"stool",`異常便便 · ${stoolTypeLabels[s.stool_type]||"其他異常"}`,s.recorded_at)),
+        ...deworming.map(d=>({
+          ...careRecord(d,"deworming",dewormingTypeLabels[d.treatment_type],null,d.treated_on),
+          nextDueOn:d.next_due_on
+        }))
+      ].sort((a,b)=>b.date.localeCompare(a.date)||
+        (b.time?Date.parse(b.time):0)-(a.time?Date.parse(a.time):0));
       historyError=false;
     } catch(error){
       if(loadId!==historyLoadId)return;
@@ -577,6 +633,7 @@ async function saveDisplayName(display_name){
             <option value="bath">洗澡</option>
             <option value="pad">換尿墊</option>
             <option value="stool">異常便便</option>
+            <option value="deworming">驅蟲</option>
           </select>
         </label>
         <label>寵物
@@ -595,7 +652,8 @@ async function saveDisplayName(display_name){
         ${historyError?'<p class="muted">暫時無法載入歷史紀錄，請稍後重新整理。</p>':
           filtered.length?filtered.map(record=>`<div class="meal-item"><div>
             <strong>${esc(record.petName||"寵物")} · ${esc(record.label)}</strong><br>
-            <span class="muted">紀錄者：${esc(record.memberName||"家庭成員")}　｜　${esc(timeText(record.time))}</span>
+            <span class="muted">紀錄者：${esc(record.memberName||"家庭成員")}${record.time?`　｜　${esc(timeText(record.time))}`:""}</span>
+            ${record.nextDueOn?`<p class="muted">下次預計日期：${esc(record.nextDueOn)}</p>`:""}
             ${record.symptoms?.length?`<p class="muted">症狀：${record.symptoms.map(esc).join("、")}</p>`:""}
             ${record.note?`<p>${esc(record.note)}</p>`:""}
           </div></div>`).join(""):'<p class="muted">這一天沒有符合篩選條件的紀錄。</p>'}
