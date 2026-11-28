@@ -94,6 +94,11 @@ householdChannel = sb.channel("household-" + household.id)
     },
     refreshData
   )
+  .on("postgres_changes",{event:"*",schema:"public",table:"medication_plans",filter:"household_id=eq."+household.id},loadMedication)
+  .on("postgres_changes",{event:"INSERT",schema:"public",table:"medication_records",filter:"household_id=eq."+household.id},()=>{
+    loadMedication();
+    loadHistory();
+  })
   .subscribe();
   }
   async function refreshData(){
@@ -147,7 +152,7 @@ householdChannel = sb.channel("household-" + household.id)
     renderPets();
     renderBathForm();
     renderHouseholdMembers();
-    await loadHistory();
+    await Promise.all([loadHistory(),loadMedication()]);
   }
 
 
@@ -347,6 +352,101 @@ bindDatedCareForm({
     const reason=$("visit-reason").value.trim();
     return reason ? {visit_reason:reason,vet_notes:$("vet-notes").value.trim()||null} : null;
   }
+});
+
+let medicationLoadId=0;
+
+async function loadMedication(){
+  if(!household)return;
+  const loadId=++medicationLoadId;
+  const today=dateKey();
+  const householdId=household.id;
+  const [plans,given]=await Promise.all([
+    sb.from("medication_plans").select("id,pet_id,medication_name,scheduled_time,starts_on,ends_on")
+      .eq("household_id",householdId).eq("active",true).order("scheduled_time"),
+    sb.from("medication_records").select("plan_id").eq("household_id",householdId).eq("medication_date",today)
+  ]);
+  if(loadId!==medicationLoadId)return;
+  const slots=$("medication-slots");
+  const status=$("medication-status");
+  if(plans.error||given.error){
+    slots.replaceChildren();
+    status.textContent="目前無法確認用藥狀態，請稍後重新整理。";
+    return;
+  }
+  const activePets=new Map(pets.map(pet=>[pet.id,pet.name]));
+  const activePlans=plans.data.filter(plan=>activePets.has(plan.pet_id)&&(!plan.ends_on||plan.ends_on>=today));
+  const givenIds=new Set(given.data.map(record=>record.plan_id));
+  status.textContent=activePlans.length ? "" : "尚未設定用藥時段。";
+  slots.innerHTML=activePlans.map(plan=>{
+    const done=givenIds.has(plan.id);
+    const upcoming=plan.starts_on>today;
+    const label=`${activePets.get(plan.pet_id)} · ${plan.medication_name} · ${plan.scheduled_time.slice(0,5)}`;
+    return `<div class="meal-item medication-slot">
+      <div><strong>${esc(label)}</strong>
+      ${upcoming?`<br><span class="muted">${esc(plan.starts_on)} 開始</span>`:""}</div>
+      <div class="medication-actions">
+        ${done?'<span class="fed">✓ 已給藥</span>':upcoming?"":`<button type="button" data-give="${esc(plan.id)}" aria-label="${esc(label)}，登記已給藥">已給藥</button>`}
+        <button type="button" class="secondary" data-stop="${esc(plan.id)}" aria-label="結束${esc(label)}的用藥時段">結束時段</button>
+      </div>
+    </div>`;
+  }).join("");
+  slots.querySelectorAll("[data-give]").forEach(button=>{
+    button.onclick=async()=>{
+      button.disabled=true;
+      const {data,error}=await sb.rpc("record_medication",{p_plan_id:button.dataset.give,p_expected_date:today});
+      await Promise.all([loadMedication(),loadHistory()]);
+      if(error)msg(error.message);
+      else if(!data)msg("這個時段今天已有人登記給藥。");
+    };
+  });
+  slots.querySelectorAll("[data-stop]").forEach(button=>{
+    button.onclick=async()=>{
+      if(!confirm("要結束這個用藥時段嗎？過往紀錄會保留。"))return;
+      button.disabled=true;
+      const {error}=await sb.rpc("stop_medication_plan",{p_plan_id:button.dataset.stop});
+      await loadMedication();
+      if(error)msg(error.message);
+    };
+  });
+}
+
+$("add-medication").onclick=()=>{
+  if(!pets.length){msg("請先新增寵物，再設定用藥時段。");return;}
+  $("medication-form").reset();
+  $("medication-pet").replaceChildren(...pets.map(pet=>new Option(pet.name,pet.id)));
+  $("medication-start").value=dateKey();
+  $("medication-form-status").textContent="";
+  $("medication-dialog").showModal();
+};
+$("cancel-medication").onclick=()=>$("medication-dialog").close();
+$("medication-form").addEventListener("submit",async e=>{
+  e.preventDefault();
+  const button=$("save-medication");
+  if(button.disabled)return;
+  const status=$("medication-form-status");
+  const name=$("medication-name").value.trim();
+  const start=$("medication-start").value;
+  const end=$("medication-end").value;
+  if(!name){status.textContent="請輸入藥品名稱。";return;}
+  if(end&&end<start){status.textContent="結束日期不能早於開始日期。";return;}
+  button.disabled=true;
+  status.textContent="";
+  try {
+    const {error}=await sb.rpc("save_medication_plan",{
+      p_pet_id:$("medication-pet").value,p_name:name,p_time:$("medication-time").value,
+      p_starts_on:start,p_ends_on:end||null
+    });
+    if(error){status.textContent=error.message;return;}
+    $("medication-dialog").close();
+    await loadMedication();
+  } finally {
+    button.disabled=false;
+  }
+});
+
+document.addEventListener("visibilitychange",()=>{
+  if(!document.hidden&&!$("care-page").classList.contains("hidden"))loadMedication();
 });
 
 function renderBathForm(){
@@ -578,14 +678,15 @@ async function saveDisplayName(display_name){
     }
 
     try {
-      const [feeding,pad,bath,stool,deworming,vaccination,visits]=await Promise.all([
+      const [feeding,pad,bath,stool,deworming,vaccination,visits,medication]=await Promise.all([
         readMonth("feedings","*,pets(name),meal_types(name),profiles(display_name)","feeding_date",monthStart,nextMonthStart),
         readMonth("pad_changes","*,pets(name)","changed_at",start,end),
         readMonth("bath_records","*,pets(name)","bathed_at",start,end),
         readMonth("stool_records","*,pets(name)","recorded_at",start,end),
         readMonth("deworming_records","*,pets(name)","treated_on",monthStart,nextMonthStart),
         readMonth("vaccination_records","*,pets(name)","vaccinated_on",monthStart,nextMonthStart),
-        readMonth("vet_visit_records","*,pets(name)","visited_on",monthStart,nextMonthStart)
+        readMonth("vet_visit_records","*,pets(name)","visited_on",monthStart,nextMonthStart),
+        readMonth("medication_records","*,pets(name),medication_plans(medication_name,scheduled_time)","medication_date",monthStart,nextMonthStart)
       ]);
       if(loadId!==historyLoadId)return;
       const careRecord=(record,type,label,time,date=dateKey(time))=>({
@@ -613,7 +714,10 @@ async function saveDisplayName(display_name){
           ...careRecord(v,"vet-visit",`就醫 · ${v.visit_reason}`,null,v.visited_on),
           nextDueOn:v.next_due_on,
           note:v.vet_notes
-        }))
+        })),
+        ...medication.map(m=>careRecord(m,"medication",
+          `用藥 · ${m.medication_plans?.medication_name||"藥品"}${m.medication_plans?.scheduled_time?`（${m.medication_plans.scheduled_time.slice(0,5)} 時段）`:""}`,
+          m.given_at,m.medication_date))
       ].sort((a,b)=>b.date.localeCompare(a.date)||
         (b.time?Date.parse(b.time):0)-(a.time?Date.parse(a.time):0));
       historyError=false;
@@ -675,6 +779,7 @@ async function saveDisplayName(display_name){
             <option value="deworming">驅蟲</option>
             <option value="vaccination">疫苗</option>
             <option value="vet-visit">就醫</option>
+            <option value="medication">用藥</option>
           </select>
         </label>
         <label>寵物
@@ -850,6 +955,7 @@ $("cancel-feed").onclick=()=>{
         item.classList.toggle("active",item===button);
       });
       $("page-title").textContent=button.dataset.title;
+      if(target==="care-page")loadMedication();
       window.scrollTo({top:0,behavior:"smooth"});
     });
   });

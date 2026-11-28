@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#f6f4ef"><meta name="description" content="PetFeeder 寵物餵食紀錄">
-  <title>PetFeeder｜寵物餵食紀錄</title><link rel="stylesheet" href="./styles.css?v=vet-visit-records">
+  <title>PetFeeder｜寵物餵食紀錄</title><link rel="stylesheet" href="./styles.css?v=medication-records">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 
@@ -94,6 +94,12 @@
   <section class="panel">
     <h3>就醫紀錄</h3>
     <button id="add-vet-visit" type="button">＋ 記錄就醫</button>
+  </section>
+  <section class="panel">
+    <h3>日常用藥</h3>
+    <p id="medication-status" class="muted" role="status"></p>
+    <div id="medication-slots"></div>
+    <button id="add-medication" type="button" class="secondary">＋ 新增用藥時段</button>
   </section>
   <section class="panel">
     <h3>🐶 尿墊更換紀錄</h3>
@@ -375,6 +381,31 @@
     </div>
   </form>
 </dialog>
+<dialog id="medication-dialog" aria-labelledby="medication-title">
+  <form id="medication-form">
+    <h2 id="medication-title">新增用藥時段</h2>
+    <label>寵物
+      <select id="medication-pet" required></select>
+    </label>
+    <label>藥品名稱
+      <input id="medication-name" maxlength="80" required>
+    </label>
+    <label>給藥時間（台灣時間）
+      <input id="medication-time" type="time" required>
+    </label>
+    <label>開始日期
+      <input id="medication-start" type="date" required>
+    </label>
+    <label>結束日期（選填）
+      <input id="medication-end" type="date">
+    </label>
+    <p id="medication-form-status" class="muted" role="status"></p>
+    <div class="dialog-actions">
+      <button id="cancel-medication" type="button" class="secondary">取消</button>
+      <button id="save-medication" type="submit">儲存時段</button>
+    </div>
+  </form>
+</dialog>
 <dialog id="first-name-dialog" aria-labelledby="first-name-title">
   <form id="first-name-form">
     <h2 id="first-name-title">要設定顯示名稱嗎？</h2>
@@ -389,5 +420,5 @@
   </form>
 </dialog>
 <script src="./config.js"></script>
-<script src="./app.js?v=vet-visit-records"></script>
+<script src="./app.js?v=medication-records"></script>
 </body></html>
