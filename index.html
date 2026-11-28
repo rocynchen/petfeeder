@@ -287,6 +287,19 @@
     </div>
   </form>
 </dialog>
+<dialog id="first-name-dialog" aria-labelledby="first-name-title">
+  <form id="first-name-form">
+    <h2 id="first-name-title">要設定顯示名稱嗎？</h2>
+    <p class="muted">家人會在紀錄中看到這個名稱。你也可以稍後到「設定 → 個人資料」更改。</p>
+    <label for="first-display-name">顯示名稱</label>
+    <input id="first-display-name" maxlength="40" placeholder="例如：媽媽、爸爸、Rosie" required>
+    <p id="first-name-error" class="muted" role="status"></p>
+    <div class="dialog-actions">
+      <button id="first-name-skip" type="button" class="secondary">先略過</button>
+      <button id="first-name-save" type="submit">儲存名稱</button>
+    </div>
+  </form>
+</dialog>
 <script src="./config.js"></script>
-<script src="./app.js?v=feeding-reminders"></script>
+<script src="./app.js?v=first-display-name"></script>
 </body></html>

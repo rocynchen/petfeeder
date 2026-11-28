@@ -13,14 +13,18 @@ let householdChannel = null;
   });
   const dateKey = (value = new Date()) => taipeiDate.format(new Date(value));
   const timeText = v => new Date(v).toLocaleString("zh-TW",{timeZone:"Asia/Taipei",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hour12:false});
+  let displayNamePromptPending=false;
   async function init() {
     const {data:{session}} = await sb.auth.getSession();
     user=session?.user || null;
     $("user-area").textContent="";
     $("profile-email").textContent=user?.email || "";
     show("auth",!user); show("app",!!user);
+    displayNamePromptPending=false;
     if(user){
-      const {data:profile}=await sb.from("profiles").select("display_name").eq("id",user.id).maybeSingle();
+      const {data:profile}=await sb.from("profiles")
+        .select("display_name,display_name_prompt_seen").eq("id",user.id).maybeSingle();
+      displayNamePromptPending=profile?.display_name_prompt_seen===false;
       const displayName=profile?.display_name?.trim() || "";
       $("display-name").value=displayName;
       $("user-area").textContent=displayName || "使用者";
@@ -413,14 +417,60 @@ if(memberActionsContainer){
     }
   });
 }
-$("profile-form").addEventListener("submit",async e=>{
-    e.preventDefault();
-    const display_name=$("display-name").value.trim();
+async function saveDisplayName(display_name){
     const {error}=await sb.from("profiles").update({display_name}).eq("id",user.id);
+    if(error)return error;
+    $("display-name").value=display_name;
+    $("user-area").textContent=display_name;
+    return null;
+  }
+  $("profile-form").addEventListener("submit",async e=>{
+    e.preventDefault();
+    const displayName=$("display-name").value.trim();
+    if(!displayName){msg("請輸入顯示名稱。");return;}
+    const error=await saveDisplayName(displayName);
     if(error){msg(error.message);return;}
-    $("user-area").textContent=display_name || "使用者";
     msg("顯示名稱已更新。");
     await refreshData();
+  });
+
+  async function showDisplayNamePrompt(){
+    if(!user||!displayNamePromptPending)return;
+    displayNamePromptPending=false;
+    const userId=user.id;
+    const {data,error}=await sb.from("profiles").update({display_name_prompt_seen:true})
+      .eq("id",userId).eq("display_name_prompt_seen",false).select("id").maybeSingle();
+    if(error){
+      console.error("無法記錄顯示名稱提示狀態",error);
+      return;
+    }
+    if(!data||user?.id!==userId)return;
+    $("first-name-form").reset();
+    $("first-name-error").textContent="";
+    $("first-name-dialog").showModal();
+  }
+
+  $("first-name-skip").onclick=()=>$("first-name-dialog").close();
+  $("first-name-form").addEventListener("submit",async e=>{
+    e.preventDefault();
+    const displayName=$("first-display-name").value.trim();
+    if(!displayName){
+      $("first-name-error").textContent="請輸入顯示名稱。";
+      return;
+    }
+    const button=$("first-name-save");
+    button.disabled=true;
+    try {
+      const error=await saveDisplayName(displayName);
+      if(error){
+        $("first-name-error").textContent="儲存失敗，請再試一次。";
+        return;
+      }
+      $("first-name-dialog").close();
+      await refreshData();
+    } finally {
+      button.disabled=false;
+    }
   });
   let historyLoadId=0;
   let historyError=false;
@@ -712,7 +762,15 @@ let initQueue = Promise.resolve();
 
 async function initializeAndHandleNfc() {
   await init();
+  handleNfc();
+  if($("feed-dialog").open){
+    $("feed-dialog").addEventListener("close",showDisplayNamePrompt,{once:true});
+  }else{
+    await showDisplayNamePrompt();
+  }
+}
 
+function handleNfc() {
   if (!user || !params.get("pet") || nfcPromptOpened) return;
 
   const petToken = params.get("pet");
