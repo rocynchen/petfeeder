@@ -239,7 +239,7 @@ header {
     gap: 8px;
   }
 
-  .meal-name {
+  .meal-name-field {
     grid-column: 1 / -1;
   }
 
@@ -549,4 +549,34 @@ header {
   .member-action {
     flex: 1 1 auto;
   }
+}
+
+.meal-row {
+  margin-bottom: 12px;
+  padding: 12px;
+  border: 1px solid #e8e5de;
+  border-radius: 12px;
+}
+
+.meal-reminder {
+  grid-column: 1 / -1;
+  padding-top: 8px;
+  border-top: 1px solid #e8e5de;
+}
+
+.meal-reminder .meal-reminder-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+}
+
+.meal-reminder-toggle input {
+  width: 1.125rem;
+  height: 1.125rem;
+  margin: 0;
+}
+
+.meal-reminder-time:disabled {
+  background: #edf1ec;
 }

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#f6f4ef"><meta name="description" content="PetFeeder 寵物餵食紀錄">
-  <title>PetFeeder｜寵物餵食紀錄</title><link rel="stylesheet" href="./styles.css?v=record-types">
+  <title>PetFeeder｜寵物餵食紀錄</title><link rel="stylesheet" href="./styles.css?v=feeding-reminders">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 
@@ -228,7 +228,23 @@
     </div>
   </form>
 </dialog>
-<template id="meal-row-template"><div class="meal-row"><input class="meal-name" placeholder="餐名，例如：早餐" required maxlength="40"><input class="meal-time" type="time" required><button type="button" class="remove-meal secondary">移除</button></div></template>
+<template id="meal-row-template">
+  <div class="meal-row">
+    <label class="meal-name-field">餐次名稱
+      <input class="meal-name" placeholder="例如：早餐" required maxlength="40">
+    </label>
+    <label>餐次時間
+      <input class="meal-time" type="time" required>
+    </label>
+    <button type="button" class="remove-meal secondary">移除</button>
+    <div class="meal-reminder">
+      <label class="meal-reminder-toggle"><input class="meal-reminder-enabled" type="checkbox"> LINE 餵食提醒</label>
+      <label>最晚提醒時間（台灣時間）
+        <input class="meal-reminder-time" type="time" disabled>
+      </label>
+    </div>
+  </div>
+</template>
 
 <dialog id="stool-dialog">
   <form method="dialog" id="stool-form">
@@ -272,5 +288,5 @@
   </form>
 </dialog>
 <script src="./config.js"></script>
-<script src="./app.js?v=record-types"></script>
+<script src="./app.js?v=feeding-reminders"></script>
 </body></html>

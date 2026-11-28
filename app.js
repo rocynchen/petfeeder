@@ -604,6 +604,17 @@ $("profile-form").addEventListener("submit",async e=>{
   function addMealRow(m={name:"",scheduled_time:"12:00"}){
     const node=$("meal-row-template").content.cloneNode(true), row=node.querySelector(".meal-row");
     row.querySelector(".meal-name").value=m.name||"";row.querySelector(".meal-time").value=m.scheduled_time||"12:00";
+    row.dataset.mealId=m.id||"";
+    const reminderToggle=row.querySelector(".meal-reminder-enabled");
+    const reminderTime=row.querySelector(".meal-reminder-time");
+    reminderToggle.checked=!!m.reminder_time;
+    reminderTime.value=m.reminder_time||"";
+    const updateReminderField=()=>{
+      reminderTime.disabled=!reminderToggle.checked;
+      reminderTime.required=reminderToggle.checked;
+    };
+    reminderToggle.onchange=updateReminderField;
+    updateReminderField();
     row.querySelector(".remove-meal").onclick=()=>row.remove();$("meal-editor").append(node);
   }
   $("add-meal").onclick=()=>addMealRow();
@@ -611,16 +622,32 @@ $("profile-form").addEventListener("submit",async e=>{
     const id=$("pet-id").value, name=$("pet-name").value.trim(), kind=$("pet-kind").value.trim();
     const rows=[...$("meal-editor").querySelectorAll(".meal-row")];
     if(!name||!rows.length){msg("請填寫寵物名稱，並至少設定一個餐次。");return;}
-    const slots=rows.map((r,i)=>({name:r.querySelector(".meal-name").value.trim(),scheduled_time:r.querySelector(".meal-time").value,sort_order:i}));
-    if(slots.some(x=>!x.name||!x.scheduled_time)){msg("請完整填寫每個餐次的名稱與時間。");return;}
-    let petId=id;
-    if(id){const {error}=await sb.from("pets").update({name,kind}).eq("id",id);if(error){msg(error.message);return;}}
-    else {const {data,error}=await sb.from("pets").insert({household_id:household.id,name,kind,created_by:user.id}).select("id").single();if(error){msg(error.message);return;}petId=data.id;}
-    const {error:de}=await sb.from("meal_types").update({active:false}).eq("pet_id",petId);
-    if(de){msg(de.message);return;}
-    const {error:ie}=await sb.from("meal_types").insert(slots.map(x=>({...x,household_id:household.id,pet_id:petId,active:true})));
-    if(ie){msg(ie.message);return;}
-    $("pet-dialog").close();await refreshData();
+    if(!$("pet-form").reportValidity())return;
+    const slots=rows.map((row,sort_order)=>({
+      id:row.dataset.mealId||null,
+      name:row.querySelector(".meal-name").value.trim(),
+      scheduled_time:row.querySelector(".meal-time").value,
+      reminder_time:row.querySelector(".meal-reminder-enabled").checked
+        ? row.querySelector(".meal-reminder-time").value : null,
+      sort_order
+    }));
+    if(slots.some(slot=>!slot.name)){
+      msg("請填寫每個餐次的名稱。");
+      return;
+    }
+
+    const button=$("save-pet");
+    button.disabled=true;
+    try {
+      const {error}=await sb.rpc("save_pet_meals",{
+        p_pet_id:id||null,p_household_id:household.id,p_name:name,p_kind:kind,p_meals:slots
+      });
+      if(error){msg(error.message);return;}
+      $("pet-dialog").close();
+      await refreshData();
+    } finally {
+      button.disabled=false;
+    }
   };
   function renderPets(){
     $("pets").innerHTML=pets.length?pets.map(p=>{
