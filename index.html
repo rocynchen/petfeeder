@@ -81,7 +81,14 @@
     <p id="bath-no-pets" class="muted hidden">請先新增寵物。</p>
     <label id="bath-pet-label" class="hidden" for="bath-pet">寵物</label>
     <select id="bath-pet" class="hidden"></select>
+    <label for="bath-due-on">下次洗澡日期（選填）</label>
+    <input id="bath-due-on" type="date" disabled>
+    <p class="muted">填寫後，會在當天上午 9 點發送 LINE 提醒。</p>
     <button id="add-bath" type="button" disabled>＋ 已洗澡</button>
+  </section>
+  <section class="panel">
+    <h3>美容紀錄</h3>
+    <button id="add-grooming" type="button">＋ 記錄美容</button>
   </section>
   <section class="panel">
     <h3>驅蟲紀錄</h3>
@@ -406,6 +413,26 @@
     </div>
   </form>
 </dialog>
+<dialog id="grooming-dialog" aria-labelledby="grooming-title">
+  <form id="grooming-form">
+    <h2 id="grooming-title">記錄美容</h2>
+    <label>寵物
+      <select id="grooming-pet" required></select>
+    </label>
+    <label>美容日期
+      <input id="groomed-on" type="date" required>
+    </label>
+    <label>下次預約日期（選填）
+      <input id="grooming-due-on" type="date">
+    </label>
+    <p class="muted">填寫後，會在預約當天上午 9 點通知已綁定的 LINE 群組。</p>
+    <p id="grooming-error" class="muted" role="status"></p>
+    <div class="dialog-actions">
+      <button id="cancel-grooming" type="button" class="secondary">取消</button>
+      <button id="save-grooming" type="submit">儲存紀錄</button>
+    </div>
+  </form>
+</dialog>
 <dialog id="first-name-dialog" aria-labelledby="first-name-title">
   <form id="first-name-form">
     <h2 id="first-name-title">要設定顯示名稱嗎？</h2>
@@ -420,5 +447,5 @@
   </form>
 </dialog>
 <script src="./config.js"></script>
-<script src="./app.js?v=medication-records"></script>
+<script src="./app.js?v=bath-grooming"></script>
 </body></html>

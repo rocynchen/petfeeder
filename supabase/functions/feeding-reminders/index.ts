@@ -12,13 +12,15 @@ Deno.serve(async req => {
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
-  const [feeding, deworming, vaccination, vetVisit] = await Promise.all([
+  const [feeding, deworming, vaccination, vetVisit, hygiene] = await Promise.all([
     admin.rpc("claim_feeding_reminders", { p_worker_key: key }),
     admin.rpc("claim_deworming_reminders", { p_worker_key: key }),
     admin.rpc("claim_vaccination_reminders", { p_worker_key: key }),
     admin.rpc("claim_vet_visit_reminders", { p_worker_key: key }),
+    admin.rpc("claim_hygiene_reminders", { p_worker_key: key }),
   ]);
-  if (feeding.error?.code === "42501" || deworming.error?.code === "42501" || vaccination.error?.code === "42501" || vetVisit.error?.code === "42501") {
+  const errors = [feeding.error, deworming.error, vaccination.error, vetVisit.error, hygiene.error].filter(Boolean);
+  if (errors.some(error => error?.code === "42501")) {
     return new Response(null, { status: 403 });
   }
   if (feeding.error) console.error("Claiming feeding reminders failed", feeding.error.code);
@@ -27,6 +29,8 @@ Deno.serve(async req => {
   if (vaccination.error) console.error("Claiming vaccination reminders failed", vaccination.error.code);
 
   if (vetVisit.error) console.error("Claiming vet visit reminders failed", vetVisit.error.code);
+
+  if (hygiene.error) console.error("Claiming bath and grooming reminders failed", hygiene.error.code);
 
   const reminders = [
     ...(feeding.data ?? []).map(reminder => ({
@@ -49,6 +53,14 @@ Deno.serve(async req => {
       table: "vet_visit_reminder_deliveries",
       text: `🐾 PetFeeder 回診提醒\n${reminder.pet_name}的「${reminder.visit_reason}」預計回診日期是今天（${reminder.reminder_date}）。`,
     })),
+    ...(hygiene.data ?? []).map(reminder => {
+      const activity = reminder.kind === "bath" ? "洗澡" : "美容";
+      return {
+        ...reminder,
+        table: "hygiene_reminder_deliveries",
+        text: `🐾 PetFeeder ${activity}提醒\n${reminder.pet_name}的${activity}日期是今天（${reminder.reminder_date}）。`,
+      };
+    }),
   ];
 
   const results = await Promise.allSettled(reminders.map(async reminder => {
@@ -81,5 +93,5 @@ Deno.serve(async req => {
 
   const sent = results.filter(result => result.status === "fulfilled" && result.value).length;
   if (sent !== reminders.length) console.error("Some reminders could not be sent", reminders.length - sent);
-  return Response.json({ claimed: reminders.length, sent }, { status: feeding.error || deworming.error || vaccination.error || vetVisit.error ? 500 : 200 });
+  return Response.json({ claimed: reminders.length, sent }, { status: errors.length ? 500 : 200 });
 });

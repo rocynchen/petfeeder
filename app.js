@@ -277,7 +277,7 @@ const stoolTypeLabels={
 };
 const dewormingTypeLabels={internal:"體內驅蟲",external:"體外驅蟲"};
 
-function bindDatedCareForm({key,label,table,dateId,dateColumn,details,requiredDetailsMessage}){
+function bindDatedCareForm({key,label,table,dateId,dateColumn,details=()=>({}),requiredDetailsMessage}){
   const form=$(`${key}-form`);
   const dialog=$(`${key}-dialog`);
   const pet=$(`${key}-pet`);
@@ -352,6 +352,10 @@ bindDatedCareForm({
     const reason=$("visit-reason").value.trim();
     return reason ? {visit_reason:reason,vet_notes:$("vet-notes").value.trim()||null} : null;
   }
+});
+
+bindDatedCareForm({
+  key:"grooming",label:"美容",table:"grooming_records",dateId:"groomed-on",dateColumn:"groomed_on"
 });
 
 let medicationLoadId=0;
@@ -457,22 +461,28 @@ function renderBathForm(){
   show("bath-pet-label",pets.length>1);
   show("bath-pet",pets.length>1);
   $("add-bath").disabled=!pets.length;
+  $("bath-due-on").disabled=!pets.length;
+  $("bath-due-on").min=dateKey(new Date(Date.now()+86400000));
   show("bath-no-pets",!pets.length);
 }
 
 $("add-bath").onclick=async()=>{
   const button=$("add-bath");
   const petId=$("bath-pet").value;
-  if(!petId||!household||!user)return;
+  if(button.disabled||!petId||!household||!user)return;
+  const due=$("bath-due-on");
+  due.min=dateKey(new Date(Date.now()+86400000));
+  if(!due.reportValidity())return;
   button.disabled=true;
   try {
     const {data,error}=await sb.from("bath_records").insert({
-      household_id:household.id, pet_id:petId, recorded_by:user.id
+      household_id:household.id, pet_id:petId, recorded_by:user.id, next_due_on:due.value||null
     }).select("id").single();
     if(error){
       msg("洗澡紀錄儲存失敗："+error.message);
       return;
     }
+    due.value="";
     const {data:notification,error:pushError}=await sb.functions.invoke("line-push",{
       body:{bath_record_id:data.id}
     });
@@ -678,7 +688,7 @@ async function saveDisplayName(display_name){
     }
 
     try {
-      const [feeding,pad,bath,stool,deworming,vaccination,visits,medication]=await Promise.all([
+      const [feeding,pad,bath,stool,deworming,vaccination,visits,medication,grooming]=await Promise.all([
         readMonth("feedings","*,pets(name),meal_types(name),profiles(display_name)","feeding_date",monthStart,nextMonthStart),
         readMonth("pad_changes","*,pets(name)","changed_at",start,end),
         readMonth("bath_records","*,pets(name)","bathed_at",start,end),
@@ -686,7 +696,8 @@ async function saveDisplayName(display_name){
         readMonth("deworming_records","*,pets(name)","treated_on",monthStart,nextMonthStart),
         readMonth("vaccination_records","*,pets(name)","vaccinated_on",monthStart,nextMonthStart),
         readMonth("vet_visit_records","*,pets(name)","visited_on",monthStart,nextMonthStart),
-        readMonth("medication_records","*,pets(name),medication_plans(medication_name,scheduled_time)","medication_date",monthStart,nextMonthStart)
+        readMonth("medication_records","*,pets(name),medication_plans(medication_name,scheduled_time)","medication_date",monthStart,nextMonthStart),
+        readMonth("grooming_records","*,pets(name)","groomed_on",monthStart,nextMonthStart)
       ]);
       if(loadId!==historyLoadId)return;
       const careRecord=(record,type,label,time,date=dateKey(time))=>({
@@ -700,7 +711,16 @@ async function saveDisplayName(display_name){
           petId:f.pet_id,petName:f.pets?.name,memberId:f.fed_by,memberName:f.profiles?.display_name
         })),
         ...pad.map(p=>careRecord(p,"pad","更換尿墊",p.changed_at)),
-        ...bath.map(b=>careRecord(b,"bath","洗澡",b.bathed_at)),
+        ...bath.map(b=>({
+          ...careRecord(b,"bath","洗澡",b.bathed_at),
+          nextDueOn:b.next_due_on,
+          dueLabel:"下次洗澡日期"
+        })),
+        ...grooming.map(g=>({
+          ...careRecord(g,"grooming","美容",null,g.groomed_on),
+          nextDueOn:g.next_due_on,
+          dueLabel:"下次預約日期"
+        })),
         ...stool.map(s=>careRecord(s,"stool",`異常便便 · ${stoolTypeLabels[s.stool_type]||"其他異常"}`,s.recorded_at)),
         ...deworming.map(d=>({
           ...careRecord(d,"deworming",dewormingTypeLabels[d.treatment_type],null,d.treated_on),
@@ -713,6 +733,7 @@ async function saveDisplayName(display_name){
         ...visits.map(v=>({
           ...careRecord(v,"vet-visit",`就醫 · ${v.visit_reason}`,null,v.visited_on),
           nextDueOn:v.next_due_on,
+          dueLabel:"下次回診日期",
           note:v.vet_notes
         })),
         ...medication.map(m=>careRecord(m,"medication",
@@ -774,6 +795,7 @@ async function saveDisplayName(display_name){
             <option value="all">全部類型</option>
             <option value="feeding">餵食</option>
             <option value="bath">洗澡</option>
+            <option value="grooming">美容</option>
             <option value="pad">換尿墊</option>
             <option value="stool">異常便便</option>
             <option value="deworming">驅蟲</option>
@@ -799,7 +821,7 @@ async function saveDisplayName(display_name){
           filtered.length?filtered.map(record=>`<div class="meal-item"><div>
             <strong>${esc(record.petName||"寵物")} · ${esc(record.label)}</strong><br>
             <span class="muted">紀錄者：${esc(record.memberName||"家庭成員")}${record.time?`　｜　${esc(timeText(record.time))}`:""}</span>
-            ${record.nextDueOn?`<p class="muted">${record.type==="vet-visit"?"下次回診日期":"下次預計日期"}：${esc(record.nextDueOn)}</p>`:""}
+            ${record.nextDueOn?`<p class="muted">${record.dueLabel||"下次預計日期"}：${esc(record.nextDueOn)}</p>`:""}
             ${record.symptoms?.length?`<p class="muted">症狀：${record.symptoms.map(esc).join("、")}</p>`:""}
             ${record.note?`<p class="history-record-note">${record.type==="vet-visit"?"獸醫交代：":""}${esc(record.note)}</p>`:""}
           </div></div>`).join(""):'<p class="muted">這一天沒有符合篩選條件的紀錄。</p>'}
