@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#f6f4ef"><meta name="description" content="PetFeeder 寵物餵食紀錄">
-  <title>PetFeeder｜寵物餵食紀錄</title><link rel="stylesheet" href="./styles.css?v=feeding-reminders">
+  <title>PetFeeder｜寵物餵食紀錄</title><link rel="stylesheet" href="./styles.css?v=vet-visit-records">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 
@@ -90,6 +90,10 @@
   <section class="panel">
     <h3>疫苗紀錄</h3>
     <button id="add-vaccination" type="button">＋ 記錄疫苗</button>
+  </section>
+  <section class="panel">
+    <h3>就醫紀錄</h3>
+    <button id="add-vet-visit" type="button">＋ 記錄就醫</button>
   </section>
   <section class="panel">
     <h3>🐶 尿墊更換紀錄</h3>
@@ -345,6 +349,32 @@
     </div>
   </form>
 </dialog>
+<dialog id="vet-visit-dialog" aria-labelledby="vet-visit-title">
+  <form id="vet-visit-form">
+    <h2 id="vet-visit-title">記錄就醫</h2>
+    <label>寵物
+      <select id="vet-visit-pet" required></select>
+    </label>
+    <label>就醫原因
+      <input id="visit-reason" type="text" maxlength="120" required>
+    </label>
+    <label>看診日期
+      <input id="visited-on" type="date" required>
+    </label>
+    <label>獸醫交代的事項（選填）
+      <textarea id="vet-notes" maxlength="1000" rows="3"></textarea>
+    </label>
+    <label>下次回診日期（選填）
+      <input id="vet-visit-due-on" type="date">
+    </label>
+    <p class="muted">填寫後，會在回診當天上午 9 點通知已綁定的 LINE 群組。</p>
+    <p id="vet-visit-error" class="muted" role="status"></p>
+    <div class="dialog-actions">
+      <button id="cancel-vet-visit" type="button" class="secondary">取消</button>
+      <button id="save-vet-visit" type="submit">儲存紀錄</button>
+    </div>
+  </form>
+</dialog>
 <dialog id="first-name-dialog" aria-labelledby="first-name-title">
   <form id="first-name-form">
     <h2 id="first-name-title">要設定顯示名稱嗎？</h2>
@@ -359,5 +389,5 @@
   </form>
 </dialog>
 <script src="./config.js"></script>
-<script src="./app.js?v=vaccination-records"></script>
+<script src="./app.js?v=vet-visit-records"></script>
 </body></html>

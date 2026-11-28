@@ -347,6 +347,11 @@ header {
   min-width: 0;
 }
 
+.history-record-note {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
 .history-date-title {
   margin: 20px 0 12px;
 }

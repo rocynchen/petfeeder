@@ -272,7 +272,7 @@ const stoolTypeLabels={
 };
 const dewormingTypeLabels={internal:"體內驅蟲",external:"體外驅蟲"};
 
-function bindDatedCareForm({key,label,table,dateId,dateColumn,details}){
+function bindDatedCareForm({key,label,table,dateId,dateColumn,details,requiredDetailsMessage}){
   const form=$(`${key}-form`);
   const dialog=$(`${key}-dialog`);
   const pet=$(`${key}-pet`);
@@ -300,7 +300,7 @@ function bindDatedCareForm({key,label,table,dateId,dateColumn,details}){
     if(button.disabled)return;
     const recordDetails=details();
     if(!recordDetails){
-      status.textContent="請輸入疫苗名稱。";
+      status.textContent=requiredDetailsMessage;
       return;
     }
     if(due.value&&due.value<=date.value){
@@ -333,9 +333,19 @@ bindDatedCareForm({
 });
 bindDatedCareForm({
   key:"vaccination",label:"疫苗",table:"vaccination_records",dateId:"vaccinated-on",dateColumn:"vaccinated_on",
+  requiredDetailsMessage:"請輸入疫苗名稱。",
   details:()=>{
     const name=$("vaccine-name").value.trim();
     return name ? {vaccine_name:name} : null;
+  }
+});
+
+bindDatedCareForm({
+  key:"vet-visit",label:"就醫",table:"vet_visit_records",dateId:"visited-on",dateColumn:"visited_on",
+  requiredDetailsMessage:"請輸入就醫原因。",
+  details:()=>{
+    const reason=$("visit-reason").value.trim();
+    return reason ? {visit_reason:reason,vet_notes:$("vet-notes").value.trim()||null} : null;
   }
 });
 
@@ -568,13 +578,14 @@ async function saveDisplayName(display_name){
     }
 
     try {
-      const [feeding,pad,bath,stool,deworming,vaccination]=await Promise.all([
+      const [feeding,pad,bath,stool,deworming,vaccination,visits]=await Promise.all([
         readMonth("feedings","*,pets(name),meal_types(name),profiles(display_name)","feeding_date",monthStart,nextMonthStart),
         readMonth("pad_changes","*,pets(name)","changed_at",start,end),
         readMonth("bath_records","*,pets(name)","bathed_at",start,end),
         readMonth("stool_records","*,pets(name)","recorded_at",start,end),
         readMonth("deworming_records","*,pets(name)","treated_on",monthStart,nextMonthStart),
-        readMonth("vaccination_records","*,pets(name)","vaccinated_on",monthStart,nextMonthStart)
+        readMonth("vaccination_records","*,pets(name)","vaccinated_on",monthStart,nextMonthStart),
+        readMonth("vet_visit_records","*,pets(name)","visited_on",monthStart,nextMonthStart)
       ]);
       if(loadId!==historyLoadId)return;
       const careRecord=(record,type,label,time,date=dateKey(time))=>({
@@ -597,6 +608,11 @@ async function saveDisplayName(display_name){
         ...vaccination.map(v=>({
           ...careRecord(v,"vaccination",`疫苗 · ${v.vaccine_name}`,null,v.vaccinated_on),
           nextDueOn:v.next_due_on
+        })),
+        ...visits.map(v=>({
+          ...careRecord(v,"vet-visit",`就醫 · ${v.visit_reason}`,null,v.visited_on),
+          nextDueOn:v.next_due_on,
+          note:v.vet_notes
         }))
       ].sort((a,b)=>b.date.localeCompare(a.date)||
         (b.time?Date.parse(b.time):0)-(a.time?Date.parse(a.time):0));
@@ -658,6 +674,7 @@ async function saveDisplayName(display_name){
             <option value="stool">異常便便</option>
             <option value="deworming">驅蟲</option>
             <option value="vaccination">疫苗</option>
+            <option value="vet-visit">就醫</option>
           </select>
         </label>
         <label>寵物
@@ -677,9 +694,9 @@ async function saveDisplayName(display_name){
           filtered.length?filtered.map(record=>`<div class="meal-item"><div>
             <strong>${esc(record.petName||"寵物")} · ${esc(record.label)}</strong><br>
             <span class="muted">紀錄者：${esc(record.memberName||"家庭成員")}${record.time?`　｜　${esc(timeText(record.time))}`:""}</span>
-            ${record.nextDueOn?`<p class="muted">下次預計日期：${esc(record.nextDueOn)}</p>`:""}
+            ${record.nextDueOn?`<p class="muted">${record.type==="vet-visit"?"下次回診日期":"下次預計日期"}：${esc(record.nextDueOn)}</p>`:""}
             ${record.symptoms?.length?`<p class="muted">症狀：${record.symptoms.map(esc).join("、")}</p>`:""}
-            ${record.note?`<p>${esc(record.note)}</p>`:""}
+            ${record.note?`<p class="history-record-note">${record.type==="vet-visit"?"獸醫交代：":""}${esc(record.note)}</p>`:""}
           </div></div>`).join(""):'<p class="muted">這一天沒有符合篩選條件的紀錄。</p>'}
       </div>`;
 
