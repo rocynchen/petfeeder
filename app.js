@@ -272,52 +272,70 @@ const stoolTypeLabels={
 };
 const dewormingTypeLabels={internal:"體內驅蟲",external:"體外驅蟲"};
 
-$("add-deworming").onclick=()=>{
-  if(!pets.length){
-    msg("請先新增寵物，再建立驅蟲紀錄。");
-    return;
-  }
-  $("deworming-form").reset();
-  $("deworming-pet").replaceChildren(...pets.map(p=>new Option(p.name,p.id)));
-  const today=dateKey();
-  $("dewormed-on").max=today;
-  $("dewormed-on").value=today;
-  $("deworming-error").textContent="";
-  $("deworming-dialog").showModal();
-};
+function bindDatedCareForm({key,label,table,dateId,dateColumn,details}){
+  const form=$(`${key}-form`);
+  const dialog=$(`${key}-dialog`);
+  const pet=$(`${key}-pet`);
+  const date=$(dateId);
+  const due=$(`${key}-due-on`);
+  const status=$(`${key}-error`);
+  const button=$(`save-${key}`);
 
-$("cancel-deworming").onclick=()=>$("deworming-dialog").close();
-$("deworming-form").addEventListener("submit",async e=>{
-  e.preventDefault();
-  const button=$("save-deworming");
-  if(button.disabled)return;
-  const treatedOn=$("dewormed-on").value;
-  const dueOn=$("deworming-due-on").value;
-  const status=$("deworming-error");
-  if(dueOn&&dueOn<=treatedOn){
-    status.textContent="下次預計日期要晚於本次日期。";
-    return;
-  }
-  status.textContent="";
-  button.disabled=true;
-  try {
-    const {error}=await sb.from("deworming_records").insert({
-      household_id:household.id,
-      pet_id:$("deworming-pet").value,
-      recorded_by:user.id,
-      treatment_type:$("deworming-type").value,
-      treated_on:treatedOn,
-      next_due_on:dueOn||null
-    });
-    if(error)throw error;
-    $("deworming-dialog").close();
-    await loadHistory();
-    msg("驅蟲紀錄已儲存。");
-  } catch(error){
-    console.error("驅蟲紀錄儲存失敗",error);
-    status.textContent="儲存失敗，請再試一次。";
-  } finally {
-    button.disabled=false;
+  $(`add-${key}`).onclick=()=>{
+    if(!pets.length){
+      msg(`請先新增寵物，再建立${label}紀錄。`);
+      return;
+    }
+    form.reset();
+    pet.replaceChildren(...pets.map(p=>new Option(p.name,p.id)));
+    date.max=dateKey();
+    date.value=date.max;
+    status.textContent="";
+    dialog.showModal();
+  };
+
+  $(`cancel-${key}`).onclick=()=>dialog.close();
+  form.addEventListener("submit",async e=>{
+    e.preventDefault();
+    if(button.disabled)return;
+    const recordDetails=details();
+    if(!recordDetails){
+      status.textContent="請輸入疫苗名稱。";
+      return;
+    }
+    if(due.value&&due.value<=date.value){
+      status.textContent="下次預計日期要晚於本次日期。";
+      return;
+    }
+    status.textContent="";
+    button.disabled=true;
+    try {
+      const {error}=await sb.from(table).insert({
+        household_id:household.id,pet_id:pet.value,recorded_by:user.id,
+        [dateColumn]:date.value,next_due_on:due.value||null,...recordDetails
+      });
+      if(error)throw error;
+      dialog.close();
+      await loadHistory();
+      msg(`${label}紀錄已儲存。`);
+    } catch(error){
+      console.error(`${label}紀錄儲存失敗`,error);
+      status.textContent="儲存失敗，請再試一次。";
+    } finally {
+      button.disabled=false;
+    }
+  });
+}
+
+bindDatedCareForm({
+  key:"deworming",label:"驅蟲",table:"deworming_records",dateId:"dewormed-on",dateColumn:"treated_on",
+  details:()=>({treatment_type:$("deworming-type").value})
+});
+bindDatedCareForm({
+  key:"vaccination",label:"疫苗",table:"vaccination_records",dateId:"vaccinated-on",dateColumn:"vaccinated_on",
+  details:()=>{
+    const name=$("vaccine-name").value.trim();
+    return name ? {vaccine_name:name} : null;
   }
 });
 
@@ -550,12 +568,13 @@ async function saveDisplayName(display_name){
     }
 
     try {
-      const [feeding,pad,bath,stool,deworming]=await Promise.all([
+      const [feeding,pad,bath,stool,deworming,vaccination]=await Promise.all([
         readMonth("feedings","*,pets(name),meal_types(name),profiles(display_name)","feeding_date",monthStart,nextMonthStart),
         readMonth("pad_changes","*,pets(name)","changed_at",start,end),
         readMonth("bath_records","*,pets(name)","bathed_at",start,end),
         readMonth("stool_records","*,pets(name)","recorded_at",start,end),
-        readMonth("deworming_records","*,pets(name)","treated_on",monthStart,nextMonthStart)
+        readMonth("deworming_records","*,pets(name)","treated_on",monthStart,nextMonthStart),
+        readMonth("vaccination_records","*,pets(name)","vaccinated_on",monthStart,nextMonthStart)
       ]);
       if(loadId!==historyLoadId)return;
       const careRecord=(record,type,label,time,date=dateKey(time))=>({
@@ -574,6 +593,10 @@ async function saveDisplayName(display_name){
         ...deworming.map(d=>({
           ...careRecord(d,"deworming",dewormingTypeLabels[d.treatment_type],null,d.treated_on),
           nextDueOn:d.next_due_on
+        })),
+        ...vaccination.map(v=>({
+          ...careRecord(v,"vaccination",`疫苗 · ${v.vaccine_name}`,null,v.vaccinated_on),
+          nextDueOn:v.next_due_on
         }))
       ].sort((a,b)=>b.date.localeCompare(a.date)||
         (b.time?Date.parse(b.time):0)-(a.time?Date.parse(a.time):0));
@@ -634,6 +657,7 @@ async function saveDisplayName(display_name){
             <option value="pad">換尿墊</option>
             <option value="stool">異常便便</option>
             <option value="deworming">驅蟲</option>
+            <option value="vaccination">疫苗</option>
           </select>
         </label>
         <label>寵物

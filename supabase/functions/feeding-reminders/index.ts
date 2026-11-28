@@ -12,15 +12,18 @@ Deno.serve(async req => {
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
-  const [feeding, deworming] = await Promise.all([
+  const [feeding, deworming, vaccination] = await Promise.all([
     admin.rpc("claim_feeding_reminders", { p_worker_key: key }),
     admin.rpc("claim_deworming_reminders", { p_worker_key: key }),
+    admin.rpc("claim_vaccination_reminders", { p_worker_key: key }),
   ]);
-  if (feeding.error?.code === "42501" || deworming.error?.code === "42501") {
+  if (feeding.error?.code === "42501" || deworming.error?.code === "42501" || vaccination.error?.code === "42501") {
     return new Response(null, { status: 403 });
   }
   if (feeding.error) console.error("Claiming feeding reminders failed", feeding.error.code);
   if (deworming.error) console.error("Claiming deworming reminders failed", deworming.error.code);
+
+  if (vaccination.error) console.error("Claiming vaccination reminders failed", vaccination.error.code);
 
   const reminders = [
     ...(feeding.data ?? []).map(reminder => ({
@@ -32,6 +35,11 @@ Deno.serve(async req => {
       ...reminder,
       table: "deworming_reminder_deliveries",
       text: `🐾 PetFeeder 驅蟲提醒\n${reminder.pet_name}的${reminder.kind === "internal" ? "體內" : "體外"}驅蟲預計日期是今天（${reminder.reminder_date}）。完成後請到 PetFeeder 的每日照護記錄。`,
+    })),
+    ...(vaccination.data ?? []).map(reminder => ({
+      ...reminder,
+      table: "vaccination_reminder_deliveries",
+      text: `🐾 PetFeeder 疫苗提醒\n${reminder.pet_name}的「${reminder.vaccine_name}」預計施打日期是今天（${reminder.reminder_date}）。完成後可以到 PetFeeder 的每日照護記錄。`,
     })),
   ];
 
@@ -65,5 +73,5 @@ Deno.serve(async req => {
 
   const sent = results.filter(result => result.status === "fulfilled" && result.value).length;
   if (sent !== reminders.length) console.error("Some reminders could not be sent", reminders.length - sent);
-  return Response.json({ claimed: reminders.length, sent }, { status: feeding.error || deworming.error ? 500 : 200 });
+  return Response.json({ claimed: reminders.length, sent }, { status: feeding.error || deworming.error || vaccination.error ? 500 : 200 });
 });

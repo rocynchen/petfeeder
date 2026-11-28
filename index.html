@@ -88,6 +88,10 @@
     <button id="add-deworming" type="button">＋ 記錄驅蟲</button>
   </section>
   <section class="panel">
+    <h3>疫苗紀錄</h3>
+    <button id="add-vaccination" type="button">＋ 記錄疫苗</button>
+  </section>
+  <section class="panel">
     <h3>🐶 尿墊更換紀錄</h3>
     <p class="muted">記錄每次更換尿墊的時間與更換人。</p>
 
@@ -318,6 +322,29 @@
     </div>
   </form>
 </dialog>
+<dialog id="vaccination-dialog" aria-labelledby="vaccination-title">
+  <form id="vaccination-form">
+    <h2 id="vaccination-title">記錄疫苗</h2>
+    <label>寵物
+      <select id="vaccination-pet" required></select>
+    </label>
+    <label>疫苗名稱
+      <input id="vaccine-name" type="text" maxlength="80" required>
+    </label>
+    <label>施打日期
+      <input id="vaccinated-on" type="date" required>
+    </label>
+    <label>下次預計日期（選填）
+      <input id="vaccination-due-on" type="date">
+    </label>
+    <p class="muted">填寫後，會在預計當天上午 9 點通知已綁定的 LINE 群組。</p>
+    <p id="vaccination-error" class="muted" role="status"></p>
+    <div class="dialog-actions">
+      <button id="cancel-vaccination" type="button" class="secondary">取消</button>
+      <button id="save-vaccination" type="submit">儲存紀錄</button>
+    </div>
+  </form>
+</dialog>
 <dialog id="first-name-dialog" aria-labelledby="first-name-title">
   <form id="first-name-form">
     <h2 id="first-name-title">要設定顯示名稱嗎？</h2>
@@ -332,5 +359,5 @@
   </form>
 </dialog>
 <script src="./config.js"></script>
-<script src="./app.js?v=deworming-records"></script>
+<script src="./app.js?v=vaccination-records"></script>
 </body></html>
